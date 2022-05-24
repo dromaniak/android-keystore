@@ -1,5 +1,6 @@
 package com.ingenico.androidkeystore
 
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -7,12 +8,14 @@ import android.security.KeyPairGeneratorSpec
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.text.method.ScrollingMovementMethod
+import android.util.Base64
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import org.spongycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.spongycastle.asn1.x500.X500Name
-import org.spongycastle.asn1.x500.style.RFC4519Style.c
 import org.spongycastle.asn1.x509.BasicConstraints
 import org.spongycastle.asn1.x509.Extension
 import org.spongycastle.asn1.x509.ExtensionsGenerator
@@ -21,32 +24,29 @@ import org.spongycastle.operator.jcajce.JcaContentSignerBuilder
 import org.spongycastle.pkcs.PKCS10CertificationRequest
 import org.spongycastle.pkcs.PKCS10CertificationRequestBuilder
 import org.spongycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder
-import java.io.File
-import java.io.FileOutputStream
-import java.io.FileReader
-import java.io.FileWriter
+import java.io.*
+import java.math.BigInteger
+import java.nio.file.Path
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.KeyStore
-import android.util.Base64
-import com.ingenico.androidkeystore.MainActivity.Companion.ALGORITHM_RSA
-import com.ingenico.androidkeystore.MainActivity.Companion.KEYSTORE_ANDROID
-import java.math.BigInteger
 import java.security.cert.Certificate
-import java.security.cert.X509Certificate
+import java.security.cert.CertificateFactory
 import java.security.spec.AlgorithmParameterSpec
 import java.util.*
 import javax.security.auth.x500.X500Principal
 
 
 @Suppress("DEPRECATION")
-@RequiresApi(Build.VERSION_CODES.M)
+@RequiresApi(Build.VERSION_CODES.N)
 class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.N)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        setSupportActionBar(findViewById(R.id.toolbar))
+
         val tv = findViewById<TextView>(R.id.log)
         tv.movementMethod = ScrollingMovementMethod()
 
@@ -74,19 +74,67 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        return when (item.itemId) {
+            R.id.action_set_certificate -> setCertificate()
+            R.id.action_get_certificate -> getCertificate()
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun setCertificate(): Boolean {
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
+        keyStore.load(null)
+
+        val certificateFactory = CertificateFactory.getInstance("X.509")
+        val cert: Certificate = certificateFactory.generateCertificate(FileInputStream(File(dataDir.path + "/keyPub_signed.crt")))
+
+        val existingPrivateKeyEntry = keyStore.getEntry(RSA_KEY_ALIAS, null) as KeyStore.PrivateKeyEntry
+        val newEntry = KeyStore.PrivateKeyEntry(existingPrivateKeyEntry.privateKey, arrayOf(cert))
+        keyStore.setEntry(RSA_KEY_ALIAS, newEntry, null)
+
+        logClear()
+        log(getKey().toString())
+        return true
+    }
+
+    private fun getCertificate(): Boolean {
+        val ks = KeyStore.getInstance("PKCS12")
+        val inputStream = FileInputStream(File(dataDir.path + "/cert.p12"))
+        inputStream.use { fis -> ks.load(fis, "pass".toCharArray()) }
+        logClear()
+        val cert = ks.getEntry("ssl.ingenico.ua", null)
+        log(cert.toString())
+        return true
+    }
+
     private fun log(s: String) {
         val tv = findViewById<TextView>(R.id.log)
         tv.text = "${tv.text}" + "\n" + s
     }
 
+    private fun logClear() {
+        val tv = findViewById<TextView>(R.id.log)
+        tv.text = ""
+    }
+
     private fun getKey(): KeyStore.Entry {
-        val ks: KeyStore = KeyStore.getInstance(KEYSTORE_ANDROID)
+        val ks: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
         ks.load(null)
         return ks.getEntry(RSA_KEY_ALIAS, null)
     }
 
     private fun getX509Certificate(alias: String): Certificate {
-        val ks: KeyStore = KeyStore.getInstance(KEYSTORE_ANDROID)
+        val ks: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
         ks.load(null)
         return ks.getCertificate(alias)
     }
@@ -128,7 +176,7 @@ class MainActivity : AppCompatActivity() {
         return try {
             val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
                     ALGORITHM_RSA,
-                    KEYSTORE_ANDROID
+                    ANDROID_KEYSTORE
             )
             keyPairGenerator.initialize(spec)
             keyPairGenerator.generateKeyPair()
@@ -145,17 +193,17 @@ class MainActivity : AppCompatActivity() {
         val signer: ContentSigner =
             JcaContentSignerBuilder("SHA512WITHRSA").build(keyPair.private)
         val csrBuilder: PKCS10CertificationRequestBuilder = JcaPKCS10CertificationRequestBuilder(
-            X500Name(principal), keyPair.public
+                X500Name(principal), keyPair.public
         )
         val extensionsGenerator = ExtensionsGenerator()
         extensionsGenerator.addExtension(
-            Extension.basicConstraints, true, BasicConstraints(
+                Extension.basicConstraints, true, BasicConstraints(
                 true
-            )
+        )
         )
         csrBuilder.addAttribute(
-            PKCSObjectIdentifiers.pkcs_9_at_extensionRequest,
-            extensionsGenerator.generate()
+                PKCSObjectIdentifiers.pkcs_9_at_extensionRequest,
+                extensionsGenerator.generate()
         )
         return csrBuilder.build(signer)
     }
@@ -182,7 +230,7 @@ class MainActivity : AppCompatActivity() {
         private const val RSA_KEY_SIZE = 2048
         private const val RSA_CERT_SUBJECT_PREFIX = "CN="
 //        private const val CERTIFICATE_VALIDITY_DAYS = 360
-        private const val KEYSTORE_ANDROID = "AndroidKeyStore"
+        private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val ALGORITHM_RSA = "RSA"
     }
 }
