@@ -13,6 +13,8 @@ import android.widget.TextView
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.ingenico.androidkeystore.ssl.NettySocketClient
+import com.ingenico.androidkeystore.ssl.SSLConnector
 import org.spongycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.spongycastle.asn1.x500.X500Name
 import org.spongycastle.asn1.x509.BasicConstraints
@@ -33,7 +35,6 @@ import java.security.cert.CertificateFactory
 import java.security.spec.AlgorithmParameterSpec
 import java.util.*
 import javax.security.auth.x500.X500Principal
-import kotlin.math.exp
 
 
 @Suppress("DEPRECATION")
@@ -53,6 +54,8 @@ class MainActivity : AppCompatActivity() {
 
         val tv = findViewById<TextView>(R.id.log)
         tv.movementMethod = ScrollingMovementMethod()
+
+        showKeys()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -78,8 +81,12 @@ class MainActivity : AppCompatActivity() {
                 importCertificate()
                 showKeys()
             }
+            R.id.action_import_ca -> {
+                importCA()
+                showKeys()
+            }
             R.id.action_show_pkcs12_certificate -> {
-                showPkcs12Certificate()
+                showPkcsCertificate()
             }
             R.id.action_delete_all_keys -> {
                 deleteKeys(all = true)
@@ -87,6 +94,10 @@ class MainActivity : AppCompatActivity() {
             }
             R.id.action_delete_other_keys -> {
                 deleteKeys(all = false)
+                showKeys()
+            }
+            R.id.action_ssl_connect -> {
+                sslConnect()
                 showKeys()
             }
             else -> super.onOptionsItemSelected(item)
@@ -115,11 +126,11 @@ class MainActivity : AppCompatActivity() {
         csr += "-----END CERTIFICATE REQUEST-----"
 
         runOnUiThread {
-            val fw = FileWriter(File(dataDir.path + "/keyPub_base64.csr"))
+            val fw = FileWriter(File(dataDir.path + "/client_base64.csr"))
             fw.write(csr)
             fw.close()
 
-            val fos = FileOutputStream(File(dataDir.path + "/keyPub.csr"))
+            val fos = FileOutputStream(File(dataDir.path + "/client.csr"))
             fos.write(keyPairCsr)
             fos.close()
         }
@@ -130,21 +141,39 @@ class MainActivity : AppCompatActivity() {
         keyStore.load(null)
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
-        val cert: Certificate = certificateFactory.generateCertificate(FileInputStream(File(dataDir.path + "/keyPub_signed.crt")))
+        val cert: Certificate = certificateFactory.generateCertificate(FileInputStream(File(dataDir.path + "/client_signed.crt")))
+        val certCA: Certificate = certificateFactory.generateCertificate(FileInputStream(File(dataDir.path + "/CAcert.pem")))
 
         val existingPrivateKeyEntry = keyStore.getEntry(RSA_KEY_ALIAS, null) as KeyStore.PrivateKeyEntry
-        val newEntry = KeyStore.PrivateKeyEntry(existingPrivateKeyEntry.privateKey, arrayOf(cert))
+        val newEntry = KeyStore.PrivateKeyEntry(existingPrivateKeyEntry.privateKey, arrayOf(cert, certCA))
         keyStore.setEntry(RSA_KEY_ALIAS, newEntry, null)
     }
 
-    private fun showPkcs12Certificate() {
+    private fun importCA() {
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
+        keyStore.load(null)
+
+        val certificateFactory = CertificateFactory.getInstance("X.509")
+        val certCA: Certificate = certificateFactory.generateCertificate(FileInputStream(File(dataDir.path + "/CAcert.pem")))
+
+        keyStore.setCertificateEntry("CA", certCA)
+    }
+
+    private fun showPkcsCertificate() {
+        val ks = getCaKeyStore()
+
         logClear()
+        for (alias in ks.aliases()) {
+            val cert = ks.getEntry(alias, null)
+            log(cert.toString())
+        }
+    }
+
+    private fun getCaKeyStore(): KeyStore {
         val ks = KeyStore.getInstance("PKCS12")
         val inputStream = FileInputStream(File(dataDir.path + "/cert.p12"))
         inputStream.use { fis -> ks.load(fis, "pass".toCharArray()) }
-        logClear()
-        val cert = ks.getEntry("ssl.ingenico.ua", null)
-        log(cert.toString())
+        return ks
     }
 
     private fun log(s: String) {
@@ -180,10 +209,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun getX509Certificate(alias: String): Certificate {
-        val ks: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-        ks.load(null)
-        return ks.getCertificate(alias)
+    private fun sslConnect() {
+//        val sslConnector = SSLConnector()
+////        sslConnector.init(KeyStore.getInstance(ANDROID_KEYSTORE))
+//        sslConnector.init(getCaKeyStore())
+//        sslConnector.connect("10.0.2.2", 1443)
+
+        val socketClient = NettySocketClient("10.0.2.2", 1443)
+        socketClient.init(getCaKeyStore())
+        socketClient.open()
+        val response = socketClient.sendMessage("Hellloooooooooooooooooo".toByteArray())
+        println(String(response!!))
+        socketClient.close()
     }
 
     private fun generateKeyPair(): KeyPair {
@@ -276,7 +313,6 @@ class MainActivity : AppCompatActivity() {
         private const val RSA_KEY_ALIAS = "host_ssl"
         private const val RSA_KEY_SIZE = 2048
         private const val RSA_CERT_SUBJECT_PREFIX = "CN="
-//        private const val CERTIFICATE_VALIDITY_DAYS = 360
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val ALGORITHM_RSA = "RSA"
     }
