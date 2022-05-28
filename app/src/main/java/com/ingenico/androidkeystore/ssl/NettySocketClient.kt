@@ -1,5 +1,6 @@
 package com.ingenico.androidkeystore.ssl
 
+import android.util.Log
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.*
 import io.netty.channel.nio.NioEventLoopGroup
@@ -28,9 +29,9 @@ class NettySocketClient(private val remoteHost: String, private val remotePort: 
 
     private var sslContext: SSLContext? = null
 
-    fun init(keyStore: KeyStore) {
+    fun init(keyStore: KeyStore, password: String?) {
         val keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
-        keyManagerFactory.init(keyStore, "pass".toCharArray())
+        keyManagerFactory.init(keyStore, password?.toCharArray())
         val keyManagers = keyManagerFactory.keyManagers
 
         val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
@@ -44,45 +45,51 @@ class NettySocketClient(private val remoteHost: String, private val remotePort: 
     @JvmOverloads
     @Throws(Exception::class)
     fun open(eventLoopGroup: EventLoopGroup? = null) {
-        if (openned.compareAndSet(false, true)) {
-            eventloopGroop = eventLoopGroup ?: NioEventLoopGroup()
-            val bootstrap = Bootstrap()
-            val handler = BlockingByteArrayClientHandler(
-                this
-            )
-            clientHandler = handler
-            bootstrap.group(eventloopGroop).channel(NioSocketChannel::class.java)
-                .handler(object : ChannelInitializer<SocketChannel>() {
-                    @Throws(Exception::class)
-                    override fun initChannel(ch: SocketChannel) {
-                        val pipeline = ch.pipeline()
-                        val engine: SSLEngine = sslContext!!.createSSLEngine()
+        try {
+            if (openned.compareAndSet(false, true)) {
+                eventloopGroop = eventLoopGroup ?: NioEventLoopGroup()
+                val bootstrap = Bootstrap()
+                val handler = BlockingByteArrayClientHandler(
+                        this
+                )
+                clientHandler = handler
+                bootstrap.group(eventloopGroop).channel(NioSocketChannel::class.java)
+                        .handler(object : ChannelInitializer<SocketChannel>() {
+                            @Throws(Exception::class)
+                            override fun initChannel(ch: SocketChannel) {
+                                val pipeline = ch.pipeline()
+                                val engine: SSLEngine = sslContext!!.createSSLEngine()
 
-                        engine.useClientMode = true
-                        engine.needClientAuth = true
-                        pipeline.addLast("ssl", SslHandler(engine))
+                                engine.useClientMode = true
+                                engine.needClientAuth = false
+                                pipeline.addLast("ssl", SslHandler(engine))
 //                        pipeline.addLast(
 //                            "length-decoder",
 //                            LengthFieldBasedFrameDecoder(Int.MAX_VALUE, 0, 4, 0, 4)
 //                        )
-                        pipeline.addLast(
-                            "bytearray-decoder",
-                            ByteArrayDecoder()
-                        )
+                                pipeline.addLast(
+                                        "bytearray-decoder",
+                                        ByteArrayDecoder()
+                                )
 //                        pipeline.addLast(
 //                            "length-encoder",
 //                            LengthFieldPrepender(4)
 //                        )
-                        pipeline.addLast(
-                            "bytearray-encoder",
-                            ByteArrayEncoder()
-                        )
-                        pipeline.addLast("handler", handler)
-                    }
-                })
-            channelFuture = bootstrap.connect(remoteHost, remotePort)
-                .sync()
+                                pipeline.addLast(
+                                        "bytearray-encoder",
+                                        ByteArrayEncoder()
+                                )
+                                pipeline.addLast("handler", handler)
+                            }
+                        })
+                channelFuture = bootstrap.connect(remoteHost, remotePort)
+                        .sync()
+            }
+        } catch (e: Exception) {
+            e.message?.let { Log.w("App", it) }
+            close()
         }
+
     }
 
     fun close() {
@@ -97,10 +104,18 @@ class NettySocketClient(private val remoteHost: String, private val remotePort: 
         throw IOException("Disconnected unpextectly.", cause)
     }
 
-    fun sendMessage(message: ByteArray?): ByteArray? {
+    fun sendMessage(message: String): ByteArray? {
         val latch = CountDownLatch(1)
-        clientHandler!!.latch = latch
-        channelFuture!!.channel().writeAndFlush(message)
+        try {
+            clientHandler!!.latch = latch
+//        channelFuture!!.channel().writeAndFlush(message)
+            channelFuture!!.channel().writeAndFlush(message.toByteArray()).sync()
+        } catch (e: Exception) {
+            e.message?.let { Log.w("App", it) }
+            close()
+        }
+        return ByteArray(0)
+
         try {
             latch.await()
         } catch (e: InterruptedException) {
@@ -128,17 +143,16 @@ class NettySocketClient(private val remoteHost: String, private val remotePort: 
 
     }
 
-    companion object {
-        @Throws(Exception::class)
-        @JvmStatic
-        fun main(args: Array<String>) {
-            val host = if (args.size > 0) args[0] else "localhost"
-            val port = if (args.size > 1) args[1].toInt() else 8443
-            val socketClient = NettySocketClient(host, port)
-            socketClient.open()
-            val response = socketClient.sendMessage("Hellloooooooooooooooooo".toByteArray())
-            println(String(response!!))
-            socketClient.close()
-        }
-    }
+//    companion object {
+//        @Throws(Exception::class)
+//        @JvmStatic
+//        fun main(args: Array<String>) {
+//            val host = if (args.size > 0) args[0] else "localhost"
+//            val port = if (args.size > 1) args[1].toInt() else 8443
+//            val socketClient = NettySocketClient(host, port)
+//            socketClient.open()
+//            val response = socketClient.sendMessage("NettySocketClient Hello".toByteArray())
+//            socketClient.close()
+//        }
+//    }
 }

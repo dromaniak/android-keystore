@@ -2,12 +2,15 @@
     <string name="app_name">android-keystore</string>
     <string name="action_generate_keypair">Generate KeyPair</string>
     <string name="action_export_csr">Export CSR</string>
-    <string name="action_import_certificate">Import Certificate</string>
+    <string name="action_import_certificate">Import Signed Certificate</string>
     <string name="action_import_ca">Import CA</string>
+    <string name="action_import_from_pkcs12">Import From PKCS12</string>
+    <string name="action_export_to_pkcs12">Export To PKCS12</string>
     <string name="action_show_pkcs12_certificate">Show PKCS12</string>
     <string name="action_delete_all_keys">Delete All Keys</string>
     <string name="action_delete_other_keys">Delete Other Keys</string>
-    <string name="action_ssl_connect">SSL Connect</string>
+    <string name="action_ssl_connect1">SSL Connect1</string>
+    <string name="action_ssl_connect2">SSL Connect2</string>
 
     <!-- Strings used for fragments for navigation -->
     <string name="first_fragment_label">First Fragment</string>

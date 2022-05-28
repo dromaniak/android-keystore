@@ -13,10 +13,11 @@ import javax.net.ssl.*
 class SSLConnector {
 
     private var sslContext: SSLContext? = null
+    private var sslSocket: SSLSocket? = null
 
-    fun init(keyStore: KeyStore) {
+    fun init(keyStore: KeyStore, password: String?) {
         val keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
-        keyManagerFactory.init(keyStore, "pass".toCharArray())
+        keyManagerFactory.init(keyStore, password?.toCharArray())
         val keyManagers = keyManagerFactory.keyManagers
 
         val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
@@ -24,27 +25,38 @@ class SSLConnector {
         val trustManagers = trustManagerFactory.trustManagers
 
         sslContext = SSLContext.getInstance("TLS")
-        sslContext?.init(keyManagers, trustManagers, null)
+        sslContext?.init(keyManagers, trustManagers, SecureRandom())
         val sslEngine = sslContext?.createSSLEngine()
         sslEngine?.useClientMode = true
+        sslEngine?.needClientAuth = false
     }
 
     fun connect(hostName: String, port: Int) {
-
-        val policy = StrictMode.ThreadPolicy.Builder().permitAll().build()
-        StrictMode.setThreadPolicy(policy)
-
-        var sslSocket: SSLSocket? = null
-
         try {
             sslSocket = sslContext?.socketFactory?.createSocket(hostName, port) as SSLSocket
-            sslSocket.startHandshake()
-            val out = BufferedWriter(OutputStreamWriter(sslSocket.getOutputStream()))
-            out.write("Hello")
+            sslSocket?.startHandshake()
         } catch (e: Exception) {
-            e.message?.let { Log.w("App", it) };
-        } finally {
-            sslSocket?.close()
+            e.message?.let { Log.w("App", it) }
+            close()
         }
+    }
+
+    fun sendMessage(message: String) {
+        if (sslSocket == null)
+            return
+        try {
+            val out = BufferedWriter(OutputStreamWriter(sslSocket?.outputStream))
+            out.write(message)
+            out.flush()
+        } catch (e: Exception) {
+            e.message?.let { Log.w("App", it) }
+            close()
+        }
+
+    }
+
+    fun close() {
+        sslSocket?.close()
+        sslSocket = null
     }
 }

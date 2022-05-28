@@ -27,11 +27,23 @@
         android:orderInCategory="50"
         android:title="@string/action_delete_other_keys" />
     <item
-        android:id="@+id/action_ssl_connect"
+        android:id="@+id/action_ssl_connect1"
         android:orderInCategory="60"
-        android:title="@string/action_ssl_connect" />
+        android:title="@string/action_ssl_connect1" />
+    <item
+        android:id="@+id/action_ssl_connect2"
+        android:orderInCategory="61"
+        android:title="@string/action_ssl_connect2" />
     <item
         android:id="@+id/action_import_ca"
         android:orderInCategory="21"
         android:title="@string/action_import_ca" />
+    <item
+        android:id="@+id/action_import_from_pkcs12"
+        android:orderInCategory="22"
+        android:title="@string/action_import_from_pkcs12" />
+    <item
+        android:id="@+id/action_export_to_pkcs12"
+        android:orderInCategory="23"
+        android:title="@string/action_export_to_pkcs12" />
 </menu>
