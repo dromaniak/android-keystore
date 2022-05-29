@@ -7,6 +7,10 @@
         android:orderInCategory="0"
         android:title="@string/action_generate_keypair" />
     <item
+        android:id="@+id/action_generate_keypair_to_pkcs"
+        android:orderInCategory="0"
+        android:title="@string/action_generate_keypair_to_pkcs" />
+    <item
         android:id="@+id/action_export_csr"
         android:orderInCategory="10"
         android:title="@string/action_export_csr" />

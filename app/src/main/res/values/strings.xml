@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">android-keystore</string>
     <string name="action_generate_keypair">Generate KeyPair</string>
+    <string name="action_generate_keypair_to_pkcs">Generate KeyPair To PKCS</string>
     <string name="action_export_csr">Export CSR</string>
     <string name="action_import_certificate">Import Signed Certificate</string>
     <string name="action_import_ca">Import CA</string>

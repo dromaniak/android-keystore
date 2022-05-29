@@ -2,7 +2,6 @@ package com.ingenico.androidkeystore
 
 import android.os.Build
 import android.os.Bundle
-import android.security.KeyChain
 import android.security.KeyPairGeneratorSpec
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -25,21 +24,20 @@ import org.spongycastle.asn1.x500.X500Name
 import org.spongycastle.asn1.x509.BasicConstraints
 import org.spongycastle.asn1.x509.Extension
 import org.spongycastle.asn1.x509.ExtensionsGenerator
+import org.spongycastle.asn1.x509.X509Name
 import org.spongycastle.cert.jcajce.JcaX509CertificateConverter
 import org.spongycastle.cert.jcajce.JcaX509v3CertificateBuilder
-import org.spongycastle.crypto.tls.ConnectionEnd.server
-import org.spongycastle.crypto.tls.KeyExchangeAlgorithm
+import org.spongycastle.jce.provider.BouncyCastleProvider
 import org.spongycastle.operator.ContentSigner
 import org.spongycastle.operator.jcajce.JcaContentSignerBuilder
 import org.spongycastle.pkcs.PKCS10CertificationRequest
 import org.spongycastle.pkcs.PKCS10CertificationRequestBuilder
 import org.spongycastle.pkcs.jcajce.JcaPKCS10CertificationRequestBuilder
 import org.spongycastle.util.encoders.Hex
+import org.spongycastle.x509.X509V3CertificateGenerator
 import java.io.*
 import java.math.BigInteger
-import java.security.KeyPair
-import java.security.KeyPairGenerator
-import java.security.KeyStore
+import java.security.*
 import java.security.cert.Certificate
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
@@ -81,9 +79,11 @@ class MainActivity : AppCompatActivity() {
         // as you specify a parent activity in AndroidManifest.xml.
         when (item.itemId) {
             R.id.action_generate_keypair -> {
-                logClear()
                 keyPair = generateKeyPair()
                 showKeys()
+            }
+            R.id.action_generate_keypair_to_pkcs -> {
+                keyPair = generateKeyPairToPkcs()
             }
             R.id.action_export_csr -> {
                 exportCsr()
@@ -170,9 +170,9 @@ class MainActivity : AppCompatActivity() {
 
         val existingPrivateKeyEntry = keyStore.getEntry(RSA_KEY_ALIAS, null) as KeyStore.PrivateKeyEntry
         val newEntry = KeyStore.PrivateKeyEntry(
-            existingPrivateKeyEntry.privateKey, arrayOf(
+                existingPrivateKeyEntry.privateKey, arrayOf(
                 cert
-            )
+        )
         )
         keyStore.setEntry(RSA_KEY_ALIAS, newEntry, null)
     }
@@ -183,11 +183,11 @@ class MainActivity : AppCompatActivity() {
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
         val certCA: Certificate = certificateFactory.generateCertificate(
-            FileInputStream(
-                File(
-                    dataDir.path + "/CAcert.pem"
+                FileInputStream(
+                        File(
+                                dataDir.path + "/CAcert.pem"
+                        )
                 )
-            )
         )
 
         keyStore.setCertificateEntry("CA", certCA)
@@ -212,7 +212,7 @@ class MainActivity : AppCompatActivity() {
         keyStoreTo.load(null)
 
         for (alias in keyStoreFrom.aliases()) {
-            keyStoreTo.setEntry(alias, keyStoreFrom.getEntry(alias, null),null)
+            keyStoreTo.setEntry(alias, keyStoreFrom.getEntry(alias, null), null)
         }
     }
 
@@ -224,7 +224,7 @@ class MainActivity : AppCompatActivity() {
         keyStoreTo.load(null)
 
         for (alias in keyStoreFrom.aliases()) {
-            keyStoreTo.setEntry(alias, keyStoreFrom.getEntry(alias, null),null)
+            keyStoreTo.setEntry(alias, keyStoreFrom.getEntry(alias, null), null)
         }
 
         val fos = FileOutputStream(File(dataDir.path + "/cert_android.p12"))
@@ -304,7 +304,7 @@ class MainActivity : AppCompatActivity() {
 
         val spec: AlgorithmParameterSpec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             KeyGenParameterSpec.Builder(
-                RSA_KEY_ALIAS,
+                    RSA_KEY_ALIAS,
 //                KeyProperties.PURPOSE_SIGN
                     KeyProperties.PURPOSE_DECRYPT or
                             KeyProperties.PURPOSE_ENCRYPT or
@@ -336,14 +336,68 @@ class MainActivity : AppCompatActivity() {
 
         return try {
             val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
-                ALGORITHM_RSA,
-                ANDROID_KEYSTORE
+                    ALGORITHM_RSA,
+                    ANDROID_KEYSTORE
             )
             keyPairGenerator.initialize(spec)
             keyPairGenerator.generateKeyPair()
         } catch (e: Exception) {
             throw Error("Cannot generate key", e)
         }
+    }
+
+    fun generateKeyPairToPkcs(): KeyPair {
+        // replace BouncyCastle by SpongeCastle
+//        val providers = Security.getProviders()
+//        var bcProviderIndex = -1
+//        for (i in providers.indices) {
+//            val provider = providers[i]
+//            if ("BC" == provider.name) {
+//                bcProviderIndex = i
+//                break
+//            }
+//        }
+//        Security.removeProvider("BC")
+//        Security.insertProviderAt(BouncyCastleProvider(), bcProviderIndex)
+        Security.insertProviderAt(BouncyCastleProvider(), Security.getProviders().size)
+
+        val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
+                ALGORITHM_RSA, "SC"
+        )
+
+        keyPairGenerator.initialize(2048)
+        val keyPair = keyPairGenerator.generateKeyPair()
+        val publicKey = keyPair.public
+        val privateKey = keyPair.private
+        val trustCert: Certificate = createCertificate("CN=CA", "CN=Ingenico", publicKey, privateKey)
+        val outChain = arrayOf(createCertificate("CN=Client", "CN=CA", publicKey, privateKey))
+
+        val keyStoreTo = KeyStore.getInstance("PKCS12", "SC")
+        keyStoreTo.load(null)
+        keyStoreTo.setKeyEntry(RSA_KEY_ALIAS, privateKey, "pass".toCharArray(), outChain)
+        keyStoreTo.setCertificateEntry("CA", trustCert)
+
+        for (alias in keyStoreTo.aliases()) {
+            Log.w("App", alias)
+        }
+
+        val fos = FileOutputStream(File(dataDir.path + "/cert_android.p12"))
+        fos.use {keyStoreTo.store(it, "pass".toCharArray()) }
+        return keyPair
+    }
+
+    private fun createCertificate(dn: String, issuer: String, publicKey: PublicKey, privateKey: PrivateKey): X509Certificate {
+        val certGenerator = X509V3CertificateGenerator()
+        certGenerator.setSerialNumber(BigInteger.valueOf(Math.abs(Random().nextLong())))
+        certGenerator.setSubjectDN(X509Name(dn))
+        certGenerator.setIssuerDN(X509Name(issuer)) // Set issuer!
+        certGenerator.setNotBefore(Calendar.getInstance().time)
+        val end: Calendar = Calendar.getInstance()
+        end.add(Calendar.YEAR, 10)
+        certGenerator.setNotAfter(end.time)
+        certGenerator.setPublicKey(publicKey)
+        certGenerator.setSignatureAlgorithm("SHA256withRSA")
+        return certGenerator.generate(privateKey, "SC") as X509Certificate
     }
 
     //Create the certificate signing request (CSR) from private and public keys
@@ -354,17 +408,17 @@ class MainActivity : AppCompatActivity() {
         val signer: ContentSigner =
             JcaContentSignerBuilder("SHA256WithRSA").build(keyPair.private)
         val csrBuilder: PKCS10CertificationRequestBuilder = JcaPKCS10CertificationRequestBuilder(
-            X500Name(principal), keyPair.public
+                X500Name(principal), keyPair.public
         )
         val extensionsGenerator = ExtensionsGenerator()
         extensionsGenerator.addExtension(
-            Extension.basicConstraints, true, BasicConstraints(
+                Extension.basicConstraints, true, BasicConstraints(
                 true
-            )
+        )
         )
         csrBuilder.addAttribute(
-            PKCSObjectIdentifiers.pkcs_9_at_extensionRequest,
-            extensionsGenerator.generate()
+                PKCSObjectIdentifiers.pkcs_9_at_extensionRequest,
+                extensionsGenerator.generate()
         )
         return csrBuilder.build(signer)
     }
