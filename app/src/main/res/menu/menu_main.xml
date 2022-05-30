@@ -3,21 +3,25 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.ingenico.androidkeystore.MainActivity">
     <item
-        android:id="@+id/action_generate_keypair"
+        android:id="@+id/action_generate_keypair_to_keystore"
         android:orderInCategory="0"
-        android:title="@string/action_generate_keypair" />
+        android:title="@string/action_generate_keypair_to_keystore" />
     <item
-        android:id="@+id/action_generate_keypair_to_pkcs"
-        android:orderInCategory="0"
-        android:title="@string/action_generate_keypair_to_pkcs" />
+        android:id="@+id/action_generate_keypair"
+        android:orderInCategory="1"
+        android:title="@string/action_generate_keypair" />
     <item
         android:id="@+id/action_export_csr"
         android:orderInCategory="10"
         android:title="@string/action_export_csr" />
     <item
-        android:id="@+id/action_import_certificate"
+        android:id="@+id/action_import_certificate_to_keystore"
         android:orderInCategory="20"
-        android:title="@string/action_import_certificate" />
+        android:title="@string/action_import_certificate_to_keystore" />
+    <item
+        android:id="@+id/action_import_certificate_to_pkcs"
+        android:orderInCategory="21"
+        android:title="@string/action_import_certificate_to_pkcs" />
     <item
         android:id="@+id/action_show_pkcs12_certificate"
         android:orderInCategory="30"
@@ -40,14 +44,18 @@
         android:title="@string/action_ssl_connect2" />
     <item
         android:id="@+id/action_import_ca"
-        android:orderInCategory="21"
+        android:orderInCategory="25"
         android:title="@string/action_import_ca" />
     <item
+        android:id="@+id/action_import_ca_to_pkcs"
+        android:orderInCategory="26"
+        android:title="@string/action_import_ca_to_pkcs" />
+    <item
         android:id="@+id/action_import_from_pkcs12"
-        android:orderInCategory="22"
+        android:orderInCategory="27"
         android:title="@string/action_import_from_pkcs12" />
     <item
         android:id="@+id/action_export_to_pkcs12"
-        android:orderInCategory="23"
+        android:orderInCategory="28"
         android:title="@string/action_export_to_pkcs12" />
 </menu>

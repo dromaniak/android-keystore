@@ -1,12 +1,14 @@
 <resources>
     <string name="app_name">android-keystore</string>
+    <string name="action_generate_keypair_to_keystore">Generate KeyPair To Keystore</string>
     <string name="action_generate_keypair">Generate KeyPair</string>
-    <string name="action_generate_keypair_to_pkcs">Generate KeyPair To PKCS</string>
-    <string name="action_export_csr">Export CSR</string>
-    <string name="action_import_certificate">Import Signed Certificate</string>
-    <string name="action_import_ca">Import CA</string>
-    <string name="action_import_from_pkcs12">Import From PKCS12</string>
-    <string name="action_export_to_pkcs12">Export To PKCS12</string>
+    <string name="action_export_csr">Export KeyPair CSR</string>
+    <string name="action_import_certificate_to_keystore">Import Signed Certificate to KeyStore</string>
+    <string name="action_import_certificate_to_pkcs">Import Signed Certificate to PKCS</string>
+    <string name="action_import_ca">Import CA To KeyStore</string>
+    <string name="action_import_ca_to_pkcs">Import CA To PKCS</string>
+    <string name="action_import_from_pkcs12">Import From PKCS12 To KeyStore</string>
+    <string name="action_export_to_pkcs12">Export From KeyStore To PKCS12</string>
     <string name="action_show_pkcs12_certificate">Show PKCS12</string>
     <string name="action_delete_all_keys">Delete All Keys</string>
     <string name="action_delete_other_keys">Delete Other Keys</string>
