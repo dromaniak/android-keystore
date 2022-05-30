@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.TextView
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -144,8 +145,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun exportCsr() {
-        if (this.keyPair == null)
+        if (this.keyPair == null) {
+            val toast = Toast.makeText(applicationContext, "No KeyPair available", Toast.LENGTH_LONG)
+            toast.show()
             return
+        }
 
         val keyPairCsr = generateCSR(this.keyPair!!, "TID SN").encoded
         logClear()
@@ -179,20 +183,38 @@ class MainActivity : AppCompatActivity() {
                 FileInputStream(File(dataDir.path + "/client_signed.crt"))
         )
 
-        val existingPrivateKeyEntry = keyStore.getEntry(RSA_KEY_ALIAS, null) as KeyStore.PrivateKeyEntry
+        val existingPrivateKeyEntry = keyStore.getEntry(KEY_ALIAS, null)
+        if (keyPair == null && existingPrivateKeyEntry == null) {
+            val toast = Toast.makeText(applicationContext, "No private keys available", Toast.LENGTH_LONG)
+            toast.show()
+            return
+        }
+
+        var privateKey: PrivateKey? = null
+        if (keyPair != null) {
+            privateKey = keyPair?.private
+        } else if (existingPrivateKeyEntry != null) {
+            if (existingPrivateKeyEntry is KeyStore.PrivateKeyEntry) {
+                privateKey = existingPrivateKeyEntry.privateKey
+            }
+        }
+
         val newEntry = KeyStore.PrivateKeyEntry(
-                existingPrivateKeyEntry.privateKey,
+                privateKey,
                 arrayOf(cert, certCA)
         )
 
-        keyStore.setEntry(RSA_KEY_ALIAS, newEntry, null)
+        keyStore.setEntry(KEY_ALIAS, newEntry, null)
     }
 
     private fun importSignedCertToPkcs() {
-        if (keyPair == null)
+        if (keyPair == null) {
+            val toast = Toast.makeText(applicationContext, "No KeyPair available", Toast.LENGTH_LONG)
+            toast.show()
             return
+        }
 
-        val keyStore = KeyStore.getInstance("PKCS12", "SC")
+        val keyStore = KeyStore.getInstance("PKCS12", PRIVIDER_NAME_SPONGY_CASTLE)
         keyStore.load(null)
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
@@ -207,7 +229,7 @@ class MainActivity : AppCompatActivity() {
                 keyPair!!.private,
                 arrayOf(cert, certCA)
         )
-        keyStore.setEntry(RSA_KEY_ALIAS, newEntry, null)
+        keyStore.setEntry(KEY_ALIAS, newEntry, null)
         savePkcsKeyStore(keyStore, "cert.p12", KEYSTORE_PASSWORD)
     }
 
@@ -230,10 +252,10 @@ class MainActivity : AppCompatActivity() {
 //        val pemParser = PEMParser(FileReader(file))
 //        val `object` = pemParser.readObject()
 //        if (`object` is X509CertificateHolder) {
-//            certCA = JcaX509CertificateConverter().setProvider("SC").getCertificate(`object`)
+//            certCA = JcaX509CertificateConverter().setProvider(PRIVIDER_NAME_SPONGY_CASTLE).getCertificate(`object`)
 //        }
 //        if (certCA == null) {
-//            throw java.lang.Exception("CAcert.pem" + " doesn't contain X509Certificate!")
+//            throw Exception("CAcert.pem" + " doesn't contain X509Certificate!")
 //        }
 
         val keyStore = loadPkcsKeyStore("cert.p12", KEYSTORE_PASSWORD)
@@ -323,7 +345,7 @@ class MainActivity : AppCompatActivity() {
             if (all) {
                 ks.deleteEntry(alias)
             } else {
-                if (alias != RSA_KEY_ALIAS)
+                if (alias != KEY_ALIAS)
                     ks.deleteEntry(alias)
             }
         }
@@ -339,6 +361,7 @@ class MainActivity : AppCompatActivity() {
 
         // Use coroutine to avoid NetworkOnMainThreadException
         GlobalScope.launch(Dispatchers.Default) {
+            // connect from Virtual Device to local PC
             sslConnector.connect("10.0.2.2", 1443)
             sslConnector.sendMessage("SSLConnector Hello\n")
             sslConnector.close()
@@ -346,6 +369,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sslConnect2() {
+        // connect from Virtual Device to local PC
         val socketClient = NettySocketClient("10.0.2.2", 1443)
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
         keyStore.load(null)
@@ -364,14 +388,14 @@ class MainActivity : AppCompatActivity() {
 
         val spec: AlgorithmParameterSpec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             KeyGenParameterSpec.Builder(
-                    RSA_KEY_ALIAS,
+                    KEY_ALIAS,
 //                KeyProperties.PURPOSE_SIGN
                     KeyProperties.PURPOSE_DECRYPT or
                             KeyProperties.PURPOSE_ENCRYPT or
                             KeyProperties.PURPOSE_SIGN or
                             KeyProperties.PURPOSE_VERIFY
             )
-                    .setCertificateSubject(X500Principal("${RSA_CERT_SUBJECT_PREFIX}$RSA_KEY_ALIAS"))
+                    .setCertificateSubject(X500Principal("${RSA_CERT_SUBJECT_PREFIX}$KEY_ALIAS"))
                     .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                     .setDigests(
                             KeyProperties.DIGEST_SHA256,
@@ -383,8 +407,8 @@ class MainActivity : AppCompatActivity() {
                     .build()
         } else {
             KeyPairGeneratorSpec.Builder(applicationContext)
-                    .setAlias(RSA_KEY_ALIAS)
-                    .setSubject(X500Principal("${RSA_CERT_SUBJECT_PREFIX}$RSA_KEY_ALIAS"))
+                    .setAlias(KEY_ALIAS)
+                    .setSubject(X500Principal("${RSA_CERT_SUBJECT_PREFIX}$KEY_ALIAS"))
                     .setSerialNumber(BigInteger.ONE)
                     .setStartDate(Date())
                     .setEndDate(end.time)
@@ -406,7 +430,7 @@ class MainActivity : AppCompatActivity() {
 
     fun generateKeyPair(): KeyPair {
         val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
-                ALGORITHM_RSA, "SC"
+                ALGORITHM_RSA, PRIVIDER_NAME_SPONGY_CASTLE
         )
 
         keyPairGenerator.initialize(2048)
@@ -415,7 +439,7 @@ class MainActivity : AppCompatActivity() {
 
     fun generateCertificatesToPkcs(): KeyPair {
         val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
-                ALGORITHM_RSA, "SC"
+                ALGORITHM_RSA, PRIVIDER_NAME_SPONGY_CASTLE
         )
 
         keyPairGenerator.initialize(2048)
@@ -432,9 +456,9 @@ class MainActivity : AppCompatActivity() {
 //        val certCA: Certificate = createCertificate("CN=CA", "CN=Ingenico", publicKey, privateKey)
         val outChain = arrayOf(createCertificate("CN=Client", issuerDn, publicKey, privateKey), certCA)
 
-        val keyStore = KeyStore.getInstance("PKCS12", "SC")
+        val keyStore = KeyStore.getInstance("PKCS12", PRIVIDER_NAME_SPONGY_CASTLE)
         keyStore.load(null)
-        keyStore.setKeyEntry(RSA_KEY_ALIAS, privateKey, KEYSTORE_PASSWORD.toCharArray(), outChain)
+        keyStore.setKeyEntry(KEY_ALIAS, privateKey, KEYSTORE_PASSWORD.toCharArray(), outChain)
 
         for (alias in keyStore.aliases()) {
             Log.w("App", alias)
@@ -455,7 +479,7 @@ class MainActivity : AppCompatActivity() {
         certGenerator.setNotAfter(end.time)
         certGenerator.setPublicKey(publicKey)
         certGenerator.setSignatureAlgorithm("SHA256withRSA")
-        return certGenerator.generate(privateKey, "SC") as X509Certificate
+        return certGenerator.generate(privateKey, PRIVIDER_NAME_SPONGY_CASTLE) as X509Certificate
     }
 
     //Create the certificate signing request (CSR) from private and public keys
@@ -518,11 +542,12 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val EMPTY_STRING = ""
 
-        private const val RSA_KEY_ALIAS = "host_ssl"
+        private const val KEY_ALIAS = "host_ssl"
         private const val RSA_KEY_SIZE = 2048
         private const val RSA_CERT_SUBJECT_PREFIX = "CN="
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEYSTORE_PASSWORD = "pass"
         private const val ALGORITHM_RSA = "RSA"
+        private const val PRIVIDER_NAME_SPONGY_CASTLE = "SC"
     }
 }
