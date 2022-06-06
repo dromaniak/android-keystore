@@ -1,0 +1,1 @@
+openssl x509 -req -in client_base64.csr -CA CAcert.pem -CAkey CAkey.pem -CAcreateserial -out client_signed.crt

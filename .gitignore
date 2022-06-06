@@ -16,3 +16,6 @@ local.properties
 /.idea/
 /app/proguard-rules.pro
 /gradle/wrapper/gradle-wrapper.jar
+/Certificates/CAcert.srl
+/Certificates/client_base64.csr
+/Certificates/client_signed.crt

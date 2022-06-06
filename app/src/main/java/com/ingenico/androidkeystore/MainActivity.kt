@@ -53,6 +53,7 @@ import javax.security.auth.x500.X500Principal
 @RequiresApi(Build.VERSION_CODES.N)
 class MainActivity : AppCompatActivity() {
     private var keyPair: KeyPair? = null
+    private var usePkcsKeyStore = false
 
     @RequiresApi(Build.VERSION_CODES.N)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,7 +62,11 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(findViewById(R.id.toolbar))
 
         findViewById<FloatingActionButton>(R.id.fab).setOnClickListener {
-            showKeys()
+            if (usePkcsKeyStore) {
+                showPkcsCertificate()
+            } else {
+                showKeys()
+            }
         }
 
         val tv = findViewById<TextView>(R.id.log)
@@ -82,55 +87,89 @@ class MainActivity : AppCompatActivity() {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         when (item.itemId) {
-            R.id.action_generate_keypair_to_keystore -> {
-                this.keyPair = generateKeyPairToKeystore()
-                showKeys()
+            R.id.menu_use_pkcs -> {
+                item.isChecked = !item.isChecked
+                usePkcsKeyStore = item.isChecked
+
+                if (usePkcsKeyStore) {
+                    showPkcsCertificate()
+                } else {
+                    showKeys()
+                }
             }
             R.id.action_generate_keypair -> {
                 this.keyPair = generateKeyPair()
             }
+            R.id.action_generate_keypair_to_store -> {
+                if (usePkcsKeyStore) {
+                    this.keyPair = generateCertificatesToPkcs()
+                    showPkcsCertificate()
+                } else {
+                    this.keyPair = generateKeyPairToKeystore()
+                    showKeys()
+                }
+            }
             R.id.action_export_csr -> {
                 exportCsr()
             }
-            R.id.action_import_certificate_to_keystore -> {
-                importSignedCertToKeystore()
-                showKeys()
+            R.id.action_import_signed_certificate_to_store -> {
+                if (usePkcsKeyStore) {
+                    importSignedCertToPkcs()
+                    showPkcsCertificate()
+                } else {
+                    importSignedCertToKeystore()
+                    showKeys()
+                }
             }
-            R.id.action_import_certificate_to_pkcs -> {
-                importSignedCertToPkcs()
+            R.id.action_import_ca_to_store -> {
+                if (usePkcsKeyStore) {
+                    importCaToPkcs()
+                    showPkcsCertificate()
+                } else {
+                    importCa()
+                    showKeys()
+                }
             }
-            R.id.action_import_ca -> {
-                importCa()
-                showKeys()
-            }
-            R.id.action_import_ca_to_pkcs -> {
-                importCaToPkcs()
-            }
-            R.id.action_import_from_pkcs12 -> {
+            R.id.action_import_from_pkcs12_to_keystore -> {
                 importFromPkcsToKeystore()
                 showKeys()
             }
-            R.id.action_export_to_pkcs12 -> {
+
+            R.id.action_export_from_keystore_to_pkcs12 -> {
                 exportFromKeystoreToPkcs()
-            }
-            R.id.action_show_pkcs12_certificate -> {
                 showPkcsCertificate()
             }
+
+            R.id.action_show_keys -> {
+                if (usePkcsKeyStore) {
+                    showPkcsCertificate()
+                } else {
+                    showKeys()
+                }
+            }
             R.id.action_delete_all_keys -> {
-                deleteKeys(all = true)
-                showKeys()
+                if (usePkcsKeyStore) {
+                    deleteKeysPkcs(all = true)
+                    showPkcsCertificate()
+                } else {
+                    deleteKeys(all = true)
+                    showKeys()
+                }
             }
             R.id.action_delete_other_keys -> {
-                deleteKeys(all = false)
-                showKeys()
+                if (usePkcsKeyStore) {
+                    deleteKeysPkcs(all = false)
+                    showPkcsCertificate()
+                } else {
+                    deleteKeys(all = false)
+                    showKeys()
+                }
             }
             R.id.action_ssl_connect1 -> {
                 sslConnect1()
-                showKeys()
             }
             R.id.action_ssl_connect2 -> {
                 sslConnect2()
-                showKeys()
             }
             else -> super.onOptionsItemSelected(item)
         }
@@ -146,7 +185,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun exportCsr() {
         if (this.keyPair == null) {
-            val toast = Toast.makeText(applicationContext, "No KeyPair available", Toast.LENGTH_LONG)
+            val toast = Toast.makeText(
+                applicationContext,
+                "No KeyPair available",
+                Toast.LENGTH_LONG
+            )
             toast.show()
             return
         }
@@ -177,15 +220,19 @@ class MainActivity : AppCompatActivity() {
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
         val certCA: Certificate = certificateFactory.generateCertificate(
-                FileInputStream(File(dataDir.path + "/CAcert.pem"))
+            FileInputStream(File(dataDir.path + "/CAcert.pem"))
         )
         val cert: Certificate = certificateFactory.generateCertificate(
-                FileInputStream(File(dataDir.path + "/client_signed.crt"))
+            FileInputStream(File(dataDir.path + "/client_signed.crt"))
         )
 
         val existingPrivateKeyEntry = keyStore.getEntry(KEY_ALIAS, null)
         if (keyPair == null && existingPrivateKeyEntry == null) {
-            val toast = Toast.makeText(applicationContext, "No private keys available", Toast.LENGTH_LONG)
+            val toast = Toast.makeText(
+                applicationContext,
+                "No private keys available",
+                Toast.LENGTH_LONG
+            )
             toast.show()
             return
         }
@@ -200,8 +247,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         val newEntry = KeyStore.PrivateKeyEntry(
-                privateKey,
-                arrayOf(cert, certCA)
+            privateKey,
+            arrayOf(cert, certCA)
         )
 
         keyStore.setEntry(KEY_ALIAS, newEntry, null)
@@ -209,7 +256,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun importSignedCertToPkcs() {
         if (keyPair == null) {
-            val toast = Toast.makeText(applicationContext, "No KeyPair available", Toast.LENGTH_LONG)
+            val toast = Toast.makeText(
+                applicationContext,
+                "No KeyPair available",
+                Toast.LENGTH_LONG
+            )
             toast.show()
             return
         }
@@ -219,15 +270,15 @@ class MainActivity : AppCompatActivity() {
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
         val certCA: Certificate = certificateFactory.generateCertificate(
-                FileInputStream(File(dataDir.path + "/CAcert.pem"))
+            FileInputStream(File(dataDir.path + "/CAcert.pem"))
         )
         val cert: Certificate = certificateFactory.generateCertificate(
-                FileInputStream(File(dataDir.path + "/client_signed.crt"))
+            FileInputStream(File(dataDir.path + "/client_signed.crt"))
         )
 
         val newEntry = KeyStore.PrivateKeyEntry(
-                keyPair!!.private,
-                arrayOf(cert, certCA)
+            keyPair!!.private,
+            arrayOf(cert, certCA)
         )
         keyStore.setEntry(KEY_ALIAS, newEntry, null)
         savePkcsKeyStore(keyStore, "cert.p12", KEYSTORE_PASSWORD)
@@ -239,7 +290,7 @@ class MainActivity : AppCompatActivity() {
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
         val certCA: Certificate = certificateFactory.generateCertificate(
-                FileInputStream(File(dataDir.path + "/CAcert.pem"))
+            FileInputStream(File(dataDir.path + "/CAcert.pem"))
         )
 
         keyStore.setCertificateEntry("CA", certCA)
@@ -262,7 +313,7 @@ class MainActivity : AppCompatActivity() {
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
         val certCA: Certificate = certificateFactory.generateCertificate(
-                FileInputStream(File(dataDir.path + "/CAcert.pem"))
+            FileInputStream(File(dataDir.path + "/CAcert.pem"))
         )
 
         keyStore.setCertificateEntry("CA", certCA)
@@ -270,6 +321,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPkcsCertificate() {
+        if (File(dataDir.path + "/cert.p12").exists().not()) {
+            logClear()
+            log("cert.p12 not found")
+            return
+        }
+
         val keyStore = loadPkcsKeyStore("cert.p12", KEYSTORE_PASSWORD)
 
         logClear()
@@ -292,21 +349,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun exportFromKeystoreToPkcs() {
-        val keyStoreFrom = KeyStore.getInstance(ANDROID_KEYSTORE)
-        val keyStoreTo = KeyStore.getInstance("PKCS12")
+        try {
+            val keyStoreFrom = KeyStore.getInstance(ANDROID_KEYSTORE)
+            val keyStoreTo = KeyStore.getInstance("PKCS12")
 
-        keyStoreFrom.load(null)
-        keyStoreTo.load(null)
+            keyStoreFrom.load(null)
+            keyStoreTo.load(null)
 
-        for (alias in keyStoreFrom.aliases()) {
-            keyStoreTo.setEntry(alias, keyStoreFrom.getEntry(alias, null), null)
+            for (alias in keyStoreFrom.aliases()) {
+                keyStoreTo.setEntry(alias, keyStoreFrom.getEntry(alias, null), null)
+            }
+
+            savePkcsKeyStore(keyStoreTo, "cert.p12", KEYSTORE_PASSWORD)
+        } catch (e: Exception) {
+            val toast = Toast.makeText(
+                    applicationContext,
+                    e.message,
+                    Toast.LENGTH_LONG
+            )
+            toast.show()
+            File(dataDir.path + "/cert.p12").delete()
         }
 
-        savePkcsKeyStore(keyStoreTo, "cert.p12", KEYSTORE_PASSWORD)
     }
 
     private fun loadPkcsKeyStore(fileName: String, password: String): KeyStore {
-         val keyStore = KeyStore.getInstance("PKCS12")
+        val keyStore = KeyStore.getInstance("PKCS12")
         val fis = FileInputStream(File(dataDir.path + "/" + fileName))
         fis.use {keyStore.load(it, password.toCharArray()) }
         return keyStore
@@ -351,13 +419,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun deleteKeysPkcs(all: Boolean = false) {
+        val ks = loadPkcsKeyStore("cert.p12", KEYSTORE_PASSWORD)
+        for (alias in ks.aliases()) {
+            if (all) {
+                ks.deleteEntry(alias)
+            } else {
+                if (alias != KEY_ALIAS)
+                    ks.deleteEntry(alias)
+            }
+        }
+        savePkcsKeyStore(ks, "cert.p12", KEYSTORE_PASSWORD)
+    }
+
     private fun sslConnect1() {
         val sslConnector = SSLConnector()
-        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-        keyStore.load(null)
-        sslConnector.init(keyStore, "")
-//        sslConnector.init(loadPkcsKeyStore("cert.p12", KEYSTORE_PASSWORD),
-//                KEYSTORE_PASSWORD)
+
+        if (usePkcsKeyStore) {
+            sslConnector.init(loadPkcsKeyStore("cert.p12", KEYSTORE_PASSWORD),
+                KEYSTORE_PASSWORD)
+
+        } else {
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
+            keyStore.load(null)
+            sslConnector.init(keyStore, "")
+        }
 
         // Use coroutine to avoid NetworkOnMainThreadException
         GlobalScope.launch(Dispatchers.Default) {
@@ -371,11 +457,16 @@ class MainActivity : AppCompatActivity() {
     private fun sslConnect2() {
         // connect from Virtual Device to local PC
         val socketClient = NettySocketClient("10.0.2.2", 1443)
-        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-        keyStore.load(null)
-        socketClient.init(keyStore, "")
-//        socketClient.init(loadPkcsKeyStore("cert.p12", KEYSTORE_PASSWORD),
-//                KEYSTORE_PASSWORD)
+
+        if (usePkcsKeyStore) {
+            socketClient.init(loadPkcsKeyStore("cert.p12", KEYSTORE_PASSWORD),
+                    KEYSTORE_PASSWORD)
+        } else {
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
+            keyStore.load(null)
+            socketClient.init(keyStore, "")
+        }
+
         socketClient.open()
         socketClient.sendMessage("NettySocketClient Hello\n")
         socketClient.close()
@@ -388,17 +479,17 @@ class MainActivity : AppCompatActivity() {
 
         val spec: AlgorithmParameterSpec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
+                KEY_ALIAS,
 //                KeyProperties.PURPOSE_SIGN
-                    KeyProperties.PURPOSE_DECRYPT or
-                            KeyProperties.PURPOSE_ENCRYPT or
-                            KeyProperties.PURPOSE_SIGN or
-                            KeyProperties.PURPOSE_VERIFY
+                KeyProperties.PURPOSE_DECRYPT or
+                        KeyProperties.PURPOSE_ENCRYPT or
+                        KeyProperties.PURPOSE_SIGN or
+                        KeyProperties.PURPOSE_VERIFY
             )
                     .setCertificateSubject(X500Principal("${RSA_CERT_SUBJECT_PREFIX}$KEY_ALIAS"))
                     .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
                     .setDigests(
-                            KeyProperties.DIGEST_SHA256,
+                        KeyProperties.DIGEST_SHA256,
                     )
                     .setCertificateSerialNumber(BigInteger.ONE)
                     .setCertificateNotBefore(start.time)
@@ -418,8 +509,8 @@ class MainActivity : AppCompatActivity() {
 
         return try {
             val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
-                    ALGORITHM_RSA,
-                    ANDROID_KEYSTORE
+                ALGORITHM_RSA,
+                ANDROID_KEYSTORE
             )
             keyPairGenerator.initialize(spec)
             keyPairGenerator.generateKeyPair()
@@ -430,7 +521,7 @@ class MainActivity : AppCompatActivity() {
 
     fun generateKeyPair(): KeyPair {
         val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
-                ALGORITHM_RSA, PRIVIDER_NAME_SPONGY_CASTLE
+            ALGORITHM_RSA, PRIVIDER_NAME_SPONGY_CASTLE
         )
 
         keyPairGenerator.initialize(2048)
@@ -439,7 +530,7 @@ class MainActivity : AppCompatActivity() {
 
     fun generateCertificatesToPkcs(): KeyPair {
         val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
-                ALGORITHM_RSA, PRIVIDER_NAME_SPONGY_CASTLE
+            ALGORITHM_RSA, PRIVIDER_NAME_SPONGY_CASTLE
         )
 
         keyPairGenerator.initialize(2048)
@@ -447,14 +538,18 @@ class MainActivity : AppCompatActivity() {
         val publicKey = keyPair.public
         val privateKey = keyPair.private
 
-        val certificateFactory = CertificateFactory.getInstance("X.509")
-        val certCA: Certificate = certificateFactory.generateCertificate(
-                FileInputStream(File(dataDir.path + "/CAcert.pem"))
-        )
+//        val certificateFactory = CertificateFactory.getInstance("X.509")
+//        val certCA: Certificate = certificateFactory.generateCertificate(
+//            FileInputStream(File(dataDir.path + "/CAcert.pem"))
+//        )
+
+        val certCA: Certificate = createCertificate("CN=CA", "CN=Ingenico", publicKey, privateKey)
         val issuerDn = (certCA as X509Certificate).subjectDN.name
 
-//        val certCA: Certificate = createCertificate("CN=CA", "CN=Ingenico", publicKey, privateKey)
-        val outChain = arrayOf(createCertificate("CN=Client", issuerDn, publicKey, privateKey), certCA)
+        val outChain = arrayOf(
+            createCertificate("CN=Client", issuerDn, publicKey, privateKey),
+//            certCA
+        )
 
         val keyStore = KeyStore.getInstance("PKCS12", PRIVIDER_NAME_SPONGY_CASTLE)
         keyStore.load(null)
@@ -468,7 +563,12 @@ class MainActivity : AppCompatActivity() {
         return keyPair
     }
 
-    private fun createCertificate(dn: String, issuer: String, publicKey: PublicKey, privateKey: PrivateKey): X509Certificate {
+    private fun createCertificate(
+        dn: String,
+        issuer: String,
+        publicKey: PublicKey,
+        privateKey: PrivateKey
+    ): X509Certificate {
         val certGenerator = X509V3CertificateGenerator()
         certGenerator.setSerialNumber(BigInteger.valueOf(Math.abs(Random().nextLong())))
         certGenerator.setSubjectDN(X509Name(dn))
@@ -489,17 +589,17 @@ class MainActivity : AppCompatActivity() {
         val signer: ContentSigner =
             JcaContentSignerBuilder("SHA256WithRSA").build(keyPair.private)
         val csrBuilder: PKCS10CertificationRequestBuilder = JcaPKCS10CertificationRequestBuilder(
-                X500Name(principal), keyPair.public
+            X500Name(principal), keyPair.public
         )
         val extensionsGenerator = ExtensionsGenerator()
         extensionsGenerator.addExtension(
-                Extension.basicConstraints, true, BasicConstraints(
+            Extension.basicConstraints, true, BasicConstraints(
                 true
-        )
+            )
         )
         csrBuilder.addAttribute(
-                PKCSObjectIdentifiers.pkcs_9_at_extensionRequest,
-                extensionsGenerator.generate()
+            PKCSObjectIdentifiers.pkcs_9_at_extensionRequest,
+            extensionsGenerator.generate()
         )
         return csrBuilder.build(signer)
     }
@@ -514,12 +614,12 @@ class MainActivity : AppCompatActivity() {
         val endDate: Date = calendar.getTime()
         val contentSigner = JcaContentSignerBuilder("SHA256WithRSA").build(pair.getPrivate())
         val certBuilder = JcaX509v3CertificateBuilder(
-                dnName,
-                certSerialNumber,
-                startDate,
-                endDate,
-                dnName,
-                pair.getPublic()
+            dnName,
+            certSerialNumber,
+            startDate,
+            endDate,
+            dnName,
+            pair.getPublic()
         )
         return JcaX509CertificateConverter().getCertificate(certBuilder.build(contentSigner))
     }
