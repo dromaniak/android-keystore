@@ -2,7 +2,7 @@
     <string name="app_name">android-keystore</string>
     <string name="menu_use_pkcs">Use PKCS Store</string>
     <string name="action_generate_keypair">Generate KeyPair</string>
-    <string name="action_generate_keypair_to_store">Generate KeyPair To Store</string>
+    <string name="action_generate_cert_to_store">Generate Certificates To Store</string>
     <string name="action_export_csr">Export KeyPair CSR</string>
     <string name="action_import_signed_certificate_to_store">Import Signed Certificate To Store</string>
     <string name="action_import_ca_to_store">Import CA To Store</string>

@@ -12,9 +12,9 @@
         android:orderInCategory="0"
         android:title="@string/action_generate_keypair" />
     <item
-        android:id="@+id/action_generate_keypair_to_store"
+        android:id="@+id/action_generate_cert_to_store"
         android:orderInCategory="1"
-        android:title="@string/action_generate_keypair_to_store" />
+        android:title="@string/action_generate_cert_to_store" />
     <item
         android:id="@+id/action_export_csr"
         android:orderInCategory="10"
