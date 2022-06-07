@@ -12,9 +12,9 @@
         android:orderInCategory="0"
         android:title="@string/action_generate_keypair" />
     <item
-        android:id="@+id/action_generate_cert_to_store"
+        android:id="@+id/action_generate_keypair_to_store"
         android:orderInCategory="1"
-        android:title="@string/action_generate_cert_to_store" />
+        android:title="@string/action_generate_keypair_to_store" />
     <item
         android:id="@+id/action_export_csr"
         android:orderInCategory="10"
@@ -28,13 +28,13 @@
         android:orderInCategory="21"
         android:title="@string/action_import_ca_to_store" />
     <item
-        android:id="@+id/action_import_from_pkcs12_to_keystore"
+        android:id="@+id/action_transfer_from_pkcs12_to_keystore"
         android:orderInCategory="27"
-        android:title="@string/action_import_from_pkcs12_to_keystore" />
+        android:title="@string/action_transfer_from_pkcs12_to_keystore" />
     <item
-        android:id="@+id/action_export_from_keystore_to_pkcs12"
+        android:id="@+id/action_transfer_from_keystore_to_pkcs12"
         android:orderInCategory="28"
-        android:title="@string/action_export_from_keystore_to_pkcs12" />
+        android:title="@string/action_transfer_from_keystore_to_pkcs12" />
     <item
         android:id="@+id/action_show_keys"
         android:orderInCategory="30"
@@ -43,10 +43,10 @@
         android:id="@+id/action_delete_all_keys"
         android:orderInCategory="40"
         android:title="@string/action_delete_all_keys" />
-    <item
-        android:id="@+id/action_delete_other_keys"
-        android:orderInCategory="50"
-        android:title="@string/action_delete_other_keys" />
+<!--    <item-->
+<!--        android:id="@+id/action_delete_other_keys"-->
+<!--        android:orderInCategory="50"-->
+<!--        android:title="@string/action_delete_other_keys" />-->
     <item
         android:id="@+id/action_ssl_connect1"
         android:orderInCategory="60"
@@ -55,4 +55,12 @@
         android:id="@+id/action_ssl_connect2"
         android:orderInCategory="61"
         android:title="@string/action_ssl_connect2" />
+    <item
+        android:id="@+id/action_encrypt_sample_data"
+        android:orderInCategory="70"
+        android:title="@string/action_encrypt_data" />
+    <item
+        android:id="@+id/action_decrypt_data"
+        android:orderInCategory="71"
+        android:title="@string/action_decrypt_data" />
 </menu>

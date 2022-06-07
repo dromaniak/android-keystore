@@ -16,8 +16,9 @@ import java.math.BigInteger
 import java.security.*
 import java.security.cert.X509Certificate
 import java.util.*
+import javax.crypto.Cipher
 
-class BouncyCastleSecurityUtils: SecurityUtils {
+class BouncyCastleSecurityUtils: SecurityUtils() {
     override val securityProvider: Provider
         get() = provider
 

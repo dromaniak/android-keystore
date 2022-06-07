@@ -2,25 +2,17 @@
     <string name="app_name">android-keystore</string>
     <string name="menu_use_pkcs">Use PKCS Store</string>
     <string name="action_generate_keypair">Generate KeyPair</string>
-    <string name="action_generate_cert_to_store">Generate Certificates To Store</string>
+    <string name="action_generate_keypair_to_store">Generate KeyPair To Store</string>
     <string name="action_export_csr">Export KeyPair CSR</string>
     <string name="action_import_signed_certificate_to_store">Import Signed Certificate To Store</string>
     <string name="action_import_ca_to_store">Import CA To Store</string>
-    <string name="action_import_from_pkcs12_to_keystore">Import From PKCS12 To KeyStore</string>
-    <string name="action_export_from_keystore_to_pkcs12">Export From KeyStore To PKCS12</string>
+    <string name="action_transfer_from_pkcs12_to_keystore">Transfer From PKCS12 To KeyStore</string>
+    <string name="action_transfer_from_keystore_to_pkcs12">Transfer From KeyStore To PKCS12</string>
     <string name="action_show_keys">Show Keys</string>
     <string name="action_delete_all_keys">Delete All Keys</string>
-    <string name="action_delete_other_keys">Delete Other Keys</string>
+<!--    <string name="action_delete_other_keys">Delete Other Keys</string>-->
     <string name="action_ssl_connect1">SSL Connect1</string>
     <string name="action_ssl_connect2">SSL Connect2</string>
-
-    <!-- Strings used for fragments for navigation -->
-    <string name="first_fragment_label">First Fragment</string>
-    <string name="second_fragment_label">Second Fragment</string>
-    <string name="next">Next</string>
-    <string name="previous">Previous</string>
-
-    <string name="hello_first_fragment">Hello first fragment</string>
-    <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
-
+    <string name="action_encrypt_data">Encrypt Data</string>
+    <string name="action_decrypt_data">Decrypt Data</string>
 </resources>

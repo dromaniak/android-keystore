@@ -18,7 +18,7 @@ import java.security.*
 import java.security.cert.X509Certificate
 import java.util.*
 
-class SpongyCastleSecurityUtils: SecurityUtils {
+class SpongyCastleSecurityUtils: SecurityUtils() {
     override val securityProvider: Provider
         get() = provider
     override fun generateKeyPair(): KeyPair {

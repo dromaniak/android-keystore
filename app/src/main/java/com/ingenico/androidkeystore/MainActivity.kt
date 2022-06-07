@@ -107,12 +107,12 @@ class MainActivity : AppCompatActivity() {
             R.id.action_generate_keypair -> {
                 this.keyPair = generateKeyPair()
             }
-            R.id.action_generate_cert_to_store -> {
+            R.id.action_generate_keypair_to_store -> {
                 if (usePkcsKeyStore) {
-                    this.keyPair = generateCertificatesToPkcs()
+                    this.keyPair = generateKeyPairToPkcs()
                     showPkcsCertificate()
                 } else {
-                    this.keyPair = generateCertificatesToKeystore()
+                    this.keyPair = generateKeyPairToKeystore()
                     showKeys()
                 }
             }
@@ -137,13 +137,13 @@ class MainActivity : AppCompatActivity() {
                     showKeys()
                 }
             }
-            R.id.action_import_from_pkcs12_to_keystore -> {
-                importFromPkcsToKeystore()
+            R.id.action_transfer_from_pkcs12_to_keystore -> {
+                transferFromPkcsToKeystore()
                 showKeys()
             }
 
-            R.id.action_export_from_keystore_to_pkcs12 -> {
-                exportFromKeystoreToPkcs()
+            R.id.action_transfer_from_keystore_to_pkcs12 -> {
+                transferFromKeystoreToPkcs()
                 showPkcsCertificate()
             }
 
@@ -163,20 +163,26 @@ class MainActivity : AppCompatActivity() {
                     showKeys()
                 }
             }
-            R.id.action_delete_other_keys -> {
-                if (usePkcsKeyStore) {
-                    deleteKeysPkcs(all = false)
-                    showPkcsCertificate()
-                } else {
-                    deleteKeys(all = false)
-                    showKeys()
-                }
-            }
+//            R.id.action_delete_other_keys -> {
+//                if (usePkcsKeyStore) {
+//                    deleteKeysPkcs(all = false)
+//                    showPkcsCertificate()
+//                } else {
+//                    deleteKeys(all = false)
+//                    showKeys()
+//                }
+//            }
             R.id.action_ssl_connect1 -> {
                 sslConnect1()
             }
             R.id.action_ssl_connect2 -> {
                 sslConnect2()
+            }
+            R.id.action_encrypt_sample_data -> {
+                encryptSampleData()
+            }
+            R.id.action_decrypt_data -> {
+                decryptData()
             }
             else -> super.onOptionsItemSelected(item)
         }
@@ -223,8 +229,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun importSignedCertToKeystore() {
-        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-        keyStore.load(null)
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
         val certCA: Certificate = certificateFactory.generateCertificate(
@@ -293,8 +298,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun importCa() {
-        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-        keyStore.load(null)
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
         val certCA: Certificate = certificateFactory.generateCertificate(
@@ -344,11 +348,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun importFromPkcsToKeystore() {
+    private fun transferFromPkcsToKeystore() {
         val keyStoreFrom = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
-
-        val keyStoreTo = KeyStore.getInstance(ANDROID_KEYSTORE)
-        keyStoreTo.load(null)
+        val keyStoreTo = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
         for (alias in keyStoreFrom.aliases()) {
             val entry = keyStoreFrom.getEntry(alias, null)
@@ -356,13 +358,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun exportFromKeystoreToPkcs() {
+    private fun transferFromKeystoreToPkcs() {
         try {
-            val keyStoreFrom = KeyStore.getInstance(ANDROID_KEYSTORE)
-            val keyStoreTo = KeyStore.getInstance(PKCS_KEYSTORE)
-
-            keyStoreFrom.load(null)
-            keyStoreTo.load(null)
+            val keyStoreFrom = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+            val keyStoreTo = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
 
             for (alias in keyStoreFrom.aliases()) {
                 keyStoreTo.setEntry(alias, keyStoreFrom.getEntry(alias, null), null)
@@ -376,7 +375,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             )
             toast.show()
-            File(applicationInfo.dataDir + "/${PKCS_KEYSTORE_FILE}").delete()
         }
 
     }
@@ -405,8 +403,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun getKeys(): List<KeyStore.Entry> {
         val keyEntries = mutableListOf<KeyStore.Entry>()
-        val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-        keyStore.load(null)
+        val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+
         for (alias in keyStore.aliases()) {
             val entry = keyStore.getEntry(alias, null)
             keyEntries.add(entry)
@@ -415,8 +413,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun deleteKeys(all: Boolean = false) {
-        val ks: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-        ks.load(null)
+        val ks: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+
         for (alias in ks.aliases()) {
             if (all) {
                 ks.deleteEntry(alias)
@@ -450,8 +448,7 @@ class MainActivity : AppCompatActivity() {
             )
 
         } else {
-            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-            keyStore.load(null)
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
             sslConnector.init(keyStore, "")
         }
 
@@ -474,8 +471,7 @@ class MainActivity : AppCompatActivity() {
                 KEYSTORE_PASSWORD
             )
         } else {
-            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
-            keyStore.load(null)
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
             socketClient.init(keyStore, "")
         }
 
@@ -484,7 +480,7 @@ class MainActivity : AppCompatActivity() {
         socketClient.close()
     }
 
-    private fun generateCertificatesToKeystore(): KeyPair {
+    private fun generateKeyPairToKeystore(): KeyPair {
         val start: Calendar = Calendar.getInstance()
         val end: Calendar = Calendar.getInstance()
         end.add(Calendar.YEAR, 10)
@@ -535,7 +531,7 @@ class MainActivity : AppCompatActivity() {
         return securityUtils.generateKeyPair()
     }
 
-    private fun generateCertificatesToPkcs(): KeyPair {
+    private fun generateKeyPairToPkcs(): KeyPair {
         val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
             ALGORITHM_RSA, securityUtils.securityProvider.name
         )
@@ -585,10 +581,77 @@ class MainActivity : AppCompatActivity() {
         return array == null || array.isEmpty()
     }
 
+    private fun encryptSampleData() {
+        val keyStore: KeyStore
+        if (usePkcsKeyStore) {
+            keyStore = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
+        } else {
+            keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+        }
+        val publicKey = keyStore.getCertificate(KEY_ALIAS)?.publicKey
+        val sampleData = "Sample Data to Encrypt"
+
+        if (publicKey == null) {
+            val toast = Toast.makeText(
+                applicationContext,
+                "No Encryption Certificate found",
+                Toast.LENGTH_LONG
+            )
+            toast.show()
+            return
+        }
+
+        logClear()
+        log("RSA Encryption\n\nData to encrypt:")
+        log(sampleData)
+        val encyptedData = securityUtils.encrypt(publicKey, sampleData.toByteArray())
+        log("\nEncrypted data:")
+        log(bytes2HexString(encyptedData))
+
+        runOnUiThread {
+            val fos = FileOutputStream(File(applicationInfo.dataDir + "/${ENCRYPTED_DATA_FILE}"))
+            fos.write(encyptedData)
+            fos.close()
+        }
+    }
+
+    private fun decryptData() {
+        val keyStore: KeyStore
+        if (usePkcsKeyStore) {
+            keyStore = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
+        } else {
+            keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+        }
+
+        val key = keyStore.getKey(KEY_ALIAS, null)
+        if (key == null) {
+            val toast = Toast.makeText(
+                applicationContext,
+                "No Decryption Key found",
+                Toast.LENGTH_LONG
+            )
+            toast.show()
+            return
+        }
+
+        val privateKey = key as PrivateKey
+        val fis = FileInputStream(File(applicationInfo.dataDir + "/${ENCRYPTED_DATA_FILE}"))
+        val encryptedData = fis.readBytes()
+        fis.close()
+
+        logClear()
+        log("RSA Decryption\n\nData to decrypt:")
+        log(bytes2HexString(encryptedData))
+
+        val decryptedData = securityUtils.decrypt(privateKey, encryptedData)
+        log("\nDecrypted data:")
+        log(String(decryptedData))
+    }
+
     companion object {
         private const val EMPTY_STRING = ""
 
-        private const val KEY_ALIAS = "host_ssl"
+        private const val KEY_ALIAS = "test_key"
         private const val RSA_KEY_SIZE = 2048
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val PKCS_KEYSTORE = "PKCS12"
@@ -602,6 +665,7 @@ class MainActivity : AppCompatActivity() {
         private const val CSR_FILE = "client.csr"
         private const val CERT_SIGNED_FILE = "client_signed.crt"
         private const val CA_FILE = "CAcert.pem"
+        private const val ENCRYPTED_DATA_FILE = "encrypted_data.bin"
 
         private const val HOST_IP = "10.0.2.2"
         private const val HOST_PORT = 1443
