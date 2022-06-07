@@ -1,4 +1,4 @@
-package com.ingenico.androidkeystore
+package com.sample.androidkeystore
 
 import android.os.Build
 import android.os.Bundle
@@ -13,10 +13,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.ingenico.androidkeystore.ssl.NettySocketClient
-import com.ingenico.androidkeystore.ssl.SSLConnector
-import com.ingenico.androidkeystore.utils.BouncyCastleSecurityUtils
-import com.ingenico.androidkeystore.utils.SpongyCastleSecurityUtils
+import com.sample.androidkeystore.ssl.NettySocketClient
+import com.sample.androidkeystore.ssl.SSLConnector
+import com.sample.androidkeystore.utils.BouncyCastleSecurityUtils
+import com.sample.androidkeystore.utils.SpongyCastleSecurityUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch

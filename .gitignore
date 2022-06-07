@@ -19,3 +19,5 @@ local.properties
 /Certificates/CAcert.srl
 /Certificates/client_base64.csr
 /Certificates/client_signed.crt
+/app/debug/
+/app/release/

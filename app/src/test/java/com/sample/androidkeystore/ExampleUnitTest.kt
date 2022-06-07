@@ -1,4 +1,4 @@
-package com.ingenico.androidkeystore
+package com.sample.androidkeystore
 
 import org.junit.Test
 

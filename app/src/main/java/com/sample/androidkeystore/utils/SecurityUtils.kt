@@ -1,4 +1,4 @@
-package com.ingenico.androidkeystore.utils
+package com.sample.androidkeystore.utils
 
 import java.security.*
 import java.security.cert.X509Certificate

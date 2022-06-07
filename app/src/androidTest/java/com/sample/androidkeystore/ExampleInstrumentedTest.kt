@@ -1,4 +1,4 @@
-package com.ingenico.androidkeystore
+package com.sample.androidkeystore
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

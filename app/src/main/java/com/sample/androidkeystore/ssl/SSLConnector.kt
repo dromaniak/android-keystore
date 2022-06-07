@@ -1,10 +1,8 @@
-package com.ingenico.androidkeystore.ssl
+package com.sample.androidkeystore.ssl
 
-import android.os.StrictMode
 import android.util.Log
 import java.io.BufferedWriter
 import java.io.OutputStreamWriter
-import java.net.Socket
 import java.security.KeyStore
 import java.security.SecureRandom
 import javax.net.ssl.*
