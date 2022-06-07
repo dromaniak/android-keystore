@@ -6,6 +6,7 @@ import org.bouncycastle.asn1.x509.*
 import org.bouncycastle.cert.X509CertificateHolder
 import org.bouncycastle.cert.X509v3CertificateBuilder
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.operator.ContentSigner
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
@@ -61,18 +62,22 @@ class BouncyCastleSecurityUtils: SecurityUtils {
         val end: Calendar = Calendar.getInstance()
         end.add(Calendar.YEAR, 10)
 
-        val subPubKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey)
-        val builder = X509v3CertificateBuilder(
-            X500Name(issuer),
-            BigInteger.ONE,
-            Calendar.getInstance().time, end.time,
-            X500Name(dn),
-            subPubKeyInfo
+        val certSerialNumber: BigInteger = BigInteger.ONE
+        val startDate = Date() // now
+        val calendar: Calendar = Calendar.getInstance()
+        calendar.time = startDate
+        calendar.add(Calendar.YEAR, 1)
+        val endDate: Date = calendar.time
+        val contentSigner = JcaContentSignerBuilder("SHA256WithRSA").build(privateKey)
+        val certBuilder = JcaX509v3CertificateBuilder(
+                X500Name(issuer),
+                certSerialNumber,
+                startDate,
+                endDate,
+                X500Name(dn),
+                publicKey
         )
-
-        val signer = JcaContentSignerBuilder("SHA256WithRSAEncryption").build(privateKey)
-        val certHolder: X509CertificateHolder = builder.build(signer)
-        return JcaX509CertificateConverter().setProvider(securityProvider.name).getCertificate(certHolder)
+        return JcaX509CertificateConverter().getCertificate(certBuilder.build(contentSigner))
     }
 
     companion object {
