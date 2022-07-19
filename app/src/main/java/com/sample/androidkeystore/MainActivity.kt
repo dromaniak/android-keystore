@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity() {
         val tv = findViewById<TextView>(R.id.log)
         tv.movementMethod = ScrollingMovementMethod()
 
-        subjectName = UUID.randomUUID().toString()
+        subjectName = "Client"
         val provider = Security.getProvider(securityUtils.securityProvider.name)
         if (provider != null) {
             log(provider.info)
@@ -163,15 +163,6 @@ class MainActivity : AppCompatActivity() {
                     showKeys()
                 }
             }
-//            R.id.action_delete_other_keys -> {
-//                if (usePkcsKeyStore) {
-//                    deleteKeysPkcs(all = false)
-//                    showPkcsCertificate()
-//                } else {
-//                    deleteKeys(all = false)
-//                    showKeys()
-//                }
-//            }
             R.id.action_ssl_connect1 -> {
                 sslConnect1()
             }
@@ -305,22 +296,11 @@ class MainActivity : AppCompatActivity() {
             FileInputStream(File(applicationInfo.dataDir + "/${CA_FILE}"))
         )
 
-        keyStore.setCertificateEntry(ISSUER_NAME, certCA)
+        val caName = (certCA as X509Certificate).subjectDN.name
+        keyStore.setCertificateEntry(caName, certCA)
     }
 
     private fun importCaToPkcs() {
-        // Spongy Castle
-//        val file = File(applicationInfo.dataDir + "/CAcert.pem")
-//        var certCA: X509Certificate? = null
-//        val pemParser = PEMParser(FileReader(file))
-//        val `object` = pemParser.readObject()
-//        if (`object` is X509CertificateHolder) {
-//            certCA = JcaX509CertificateConverter().setProvider(PRIVIDER_NAME_SPONGY_CASTLE).getCertificate(`object`)
-//        }
-//        if (certCA == null) {
-//            throw Exception("CAcert.pem" + " doesn't contain X509Certificate!")
-//        }
-
         val keyStore = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
 
         val certificateFactory = CertificateFactory.getInstance("X.509")
@@ -328,7 +308,8 @@ class MainActivity : AppCompatActivity() {
             FileInputStream(File(applicationInfo.dataDir + "/${CA_FILE}"))
         )
 
-        keyStore.setCertificateEntry(ISSUER_NAME, certCA)
+        val caName = (certCA as X509Certificate).subjectDN.name
+        keyStore.setCertificateEntry(caName, certCA)
         savePkcsKeyStore(keyStore, PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
     }
 
@@ -380,7 +361,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadPkcsKeyStore(fileName: String, password: String): KeyStore {
-        val keyStore = KeyStore.getInstance(PKCS_KEYSTORE)
+        val keyStore = KeyStore.getInstance(PKCS_KEYSTORE, securityUtils.securityProvider.name)
         val fis = FileInputStream(File(applicationInfo.dataDir + "/" + fileName))
         fis.use {keyStore.load(it, password.toCharArray()) }
         return keyStore
@@ -481,50 +462,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun generateKeyPairToKeystore(): KeyPair {
-        val start: Calendar = Calendar.getInstance()
-        val end: Calendar = Calendar.getInstance()
-        end.add(Calendar.YEAR, 10)
+        val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
+                ALGORITHM_RSA, securityUtils.securityProvider.name
+        )
 
-        val spec: AlgorithmParameterSpec = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
-//                KeyProperties.PURPOSE_SIGN
-                KeyProperties.PURPOSE_DECRYPT or
-                        KeyProperties.PURPOSE_ENCRYPT or
-                        KeyProperties.PURPOSE_SIGN or
-                        KeyProperties.PURPOSE_VERIFY
-            )
-                    .setCertificateSubject(X500Principal("CN=${subjectName}"))
-                    .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
-                    .setDigests(
-                        KeyProperties.DIGEST_SHA256,
-                    )
-                    .setCertificateSerialNumber(BigInteger.ONE)
-                    .setCertificateNotBefore(start.time)
-                    .setCertificateNotAfter(end.time)
-                    .setKeySize(RSA_KEY_SIZE)
-                    .build()
-        } else {
-            KeyPairGeneratorSpec.Builder(applicationContext)
-                    .setAlias(KEY_ALIAS)
-                    .setSubject(X500Principal("CN=${subjectName}"))
-                    .setSerialNumber(BigInteger.ONE)
-                    .setStartDate(Date())
-                    .setEndDate(end.time)
-                    .setKeySize(RSA_KEY_SIZE)
-                    .build()
-        }
+        keyPairGenerator.initialize(2048)
+        val keyPair = keyPairGenerator.generateKeyPair()
+        val publicKey = keyPair.public
+        val privateKey = keyPair.private
 
-        return try {
-            val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
-                ALGORITHM_RSA,
-                ANDROID_KEYSTORE
-            )
-            keyPairGenerator.initialize(spec)
-            keyPairGenerator.generateKeyPair()
-        } catch (e: Exception) {
-            throw Error("Cannot generate key", e)
-        }
+        val outChain = arrayOf(
+                securityUtils.createCertificate("CN=SubjectName", "CN=IssuerName", publicKey, privateKey),
+        )
+
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE)
+        keyStore.load(null)
+        keyStore.setKeyEntry(KEY_ALIAS, privateKey, "".toCharArray(), outChain)
+        return keyPair
     }
 
     private fun generateKeyPair(): KeyPair {
@@ -541,21 +495,8 @@ class MainActivity : AppCompatActivity() {
         val publicKey = keyPair.public
         val privateKey = keyPair.private
 
-//        val certificateFactory = CertificateFactory.getInstance("X.509")
-//        val certCA: Certificate = certificateFactory.generateCertificate(
-//            FileInputStream(File(applicationInfo.dataDir + "/CAcert.pem"))
-//        )
-
-        val certCA: Certificate = securityUtils.createCertificate(
-            "CN=${ISSUER_NAME}",
-            "CN=${ISSUER_CA_NAME}",
-            publicKey,
-            privateKey
-        )
-        val issuerDn = (certCA as X509Certificate).subjectDN.name
-
         val outChain = arrayOf(
-            securityUtils.createCertificate("CN=${subjectName}", issuerDn, publicKey, privateKey),
+            securityUtils.createCertificate("CN=SubjectName", "CN=IssuerName", publicKey, privateKey),
         )
 
         val keyStore = KeyStore.getInstance(PKCS_KEYSTORE, securityUtils.securityProvider.name)
@@ -659,8 +600,6 @@ class MainActivity : AppCompatActivity() {
         private const val KEYSTORE_PASSWORD = "pass"
         
         private const val ALGORITHM_RSA = "RSA"
-        private const val ISSUER_CA_NAME = "Ingenico"
-        private const val ISSUER_NAME = "CA"
         private const val CSR_BASE64_FILE = "client_base64.csr"
         private const val CSR_FILE = "client.csr"
         private const val CERT_SIGNED_FILE = "client_signed.crt"
