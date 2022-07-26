@@ -220,69 +220,56 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun importSignedCertToKeystore() {
-        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-
-        val certificateFactory = CertificateFactory.getInstance("X.509")
-        val certCA: Certificate = certificateFactory.generateCertificate(
-            FileInputStream(File(applicationInfo.dataDir + "/${CA_FILE}"))
-        )
-        val cert: Certificate = certificateFactory.generateCertificate(
-            FileInputStream(File(applicationInfo.dataDir + "/${CERT_SIGNED_FILE}"))
-        )
-
-        val existingPrivateKeyEntry = keyStore.getEntry(KEY_ALIAS, null)
-        if (keyPair == null && existingPrivateKeyEntry == null) {
+        /*
+            Works only if private key available
+            https://stackoverflow.com/questions/70897815/why-is-androidkeystore-transforming-privatekeyentry-into-a-trustedcertifiateentr
+         */
+        if (keyPair == null) {
             val toast = Toast.makeText(
-                applicationContext,
-                "No private keys available",
-                Toast.LENGTH_LONG
+                    applicationContext,
+                    "No KeyPair available",
+                    Toast.LENGTH_LONG
             )
             toast.show()
             return
         }
 
-        var privateKey: PrivateKey? = null
-        if (keyPair != null) {
-            privateKey = keyPair?.private
-        } else if (existingPrivateKeyEntry != null) {
-            if (existingPrivateKeyEntry is KeyStore.PrivateKeyEntry) {
-                privateKey = existingPrivateKeyEntry.privateKey
-            }
-        }
+        val certificateFactory = CertificateFactory.getInstance("X.509")
+        val cert: Certificate = certificateFactory.generateCertificate(
+            FileInputStream(File(applicationInfo.dataDir + "/${CERT_SIGNED_FILE}"))
+        )
 
+        val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
         val newEntry = KeyStore.PrivateKeyEntry(
-            privateKey,
-            arrayOf(cert, certCA)
+            keyPair!!.private,
+            arrayOf(cert)
         )
 
         keyStore.setEntry(KEY_ALIAS, newEntry, null)
     }
 
     private fun importSignedCertToPkcs() {
-        if (keyPair == null) {
+        val certificateFactory = CertificateFactory.getInstance("X.509")
+        val cert: Certificate = certificateFactory.generateCertificate(
+            FileInputStream(File(applicationInfo.dataDir + "/${CERT_SIGNED_FILE}"))
+        )
+
+        val keyStore = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
+        val key = keyStore.getKey(KEY_ALIAS, null)
+        if (key == null) {
             val toast = Toast.makeText(
-                applicationContext,
-                "No KeyPair available",
-                Toast.LENGTH_LONG
+                    applicationContext,
+                    "No Private Key found",
+                    Toast.LENGTH_LONG
             )
             toast.show()
             return
         }
 
-        val keyStore = KeyStore.getInstance(PKCS_KEYSTORE, securityUtils.securityProvider.name)
-        keyStore.load(null)
-
-        val certificateFactory = CertificateFactory.getInstance("X.509")
-        val certCA: Certificate = certificateFactory.generateCertificate(
-            FileInputStream(File(applicationInfo.dataDir + "/${CA_FILE}"))
-        )
-        val cert: Certificate = certificateFactory.generateCertificate(
-            FileInputStream(File(applicationInfo.dataDir + "/${CERT_SIGNED_FILE}"))
-        )
-
+        val privateKey = key as PrivateKey
         val newEntry = KeyStore.PrivateKeyEntry(
-            keyPair!!.private,
-            arrayOf(cert, certCA)
+            privateKey,
+            arrayOf(cert)
         )
         keyStore.setEntry(KEY_ALIAS, newEntry, null)
         savePkcsKeyStore(keyStore, PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
