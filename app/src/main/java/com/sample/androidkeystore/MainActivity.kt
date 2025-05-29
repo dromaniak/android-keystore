@@ -1,37 +1,32 @@
 package com.sample.androidkeystore
 
-import android.os.Build
+import android.app.Activity
+import android.content.Context
 import android.os.Bundle
-import android.security.KeyPairGeneratorSpec
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
+import android.security.KeyChain
+import android.security.KeyChainAliasCallback
 import android.text.method.ScrollingMovementMethod
 import android.util.Base64
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.sample.androidkeystore.ssl.NettySocketClient
 import com.sample.androidkeystore.ssl.SSLConnector
 import com.sample.androidkeystore.utils.BouncyCastleSecurityUtils
 import com.sample.androidkeystore.utils.SpongyCastleSecurityUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.FileWriter
-import java.math.BigInteger
 import java.security.*
 import java.security.cert.Certificate
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
-import java.security.spec.AlgorithmParameterSpec
-import java.util.*
-import javax.security.auth.x500.X500Principal
+import javax.net.ssl.TrustManagerFactory
 
 
 @Suppress("DEPRECATION")
@@ -164,10 +159,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             R.id.action_ssl_connect1 -> {
-                sslConnect1()
-            }
-            R.id.action_ssl_connect2 -> {
-                sslConnect2()
+                sslConnect()
             }
             R.id.action_encrypt_sample_data -> {
                 encryptSampleData()
@@ -406,47 +398,51 @@ class MainActivity : AppCompatActivity() {
         savePkcsKeyStore(ks, PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
     }
 
-    private fun sslConnect1() {
+    private fun sslConnect() {
         val sslConnector = SSLConnector()
 
-        if (usePkcsKeyStore) {
-            sslConnector.init(
-                loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD),
-                KEYSTORE_PASSWORD
-            )
+        GlobalScope.launch {
+            try {
+                val alias = selectKeyAlias(this@MainActivity)
+                val (privateKey, certChain) = loadKeyChainEntry(this@MainActivity, alias)
 
-        } else {
-            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-            sslConnector.init(keyStore, "")
-        }
+                val keyStore: KeyStore = KeyStore.getInstance("PKCS12")
+                keyStore.load(null, null) // пустой кейстор
+                keyStore.setKeyEntry("client", privateKey, null, certChain)
+                sslConnector.init(keyStore)
+                
+                // connect from Virtual Device to local PC
+                sslConnector.connect(HOST_IP, HOST_PORT)
+                sslConnector.sendMessage("SSLConnector Hello\n")
+                sslConnector.close()
 
-        // Use coroutine to avoid NetworkOnMainThreadException
-        GlobalScope.launch(Dispatchers.Default) {
-            // connect from Virtual Device to local PC
-            sslConnector.connect(HOST_IP, HOST_PORT)
-            sslConnector.sendMessage("SSLConnector Hello\n")
-            sslConnector.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
-    private fun sslConnect2() {
-        // connect from Virtual Device to local PC
-        val socketClient = NettySocketClient(HOST_IP, HOST_PORT)
-
-        if (usePkcsKeyStore) {
-            socketClient.init(
-                loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD),
-                KEYSTORE_PASSWORD
-            )
-        } else {
-            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-            socketClient.init(keyStore, "")
-        }
-
-        socketClient.open()
-        socketClient.sendMessage("NettySocketClient Hello\n")
-        socketClient.close()
+    // suspend-функция для выбора alias
+    suspend fun selectKeyAlias(context: Activity): String = suspendCancellableCoroutine { cont ->
+        KeyChain.choosePrivateKeyAlias(
+            context, { alias ->
+                if (alias != null) {
+                    cont.resume(alias) {}
+                } else {
+                    cont.cancel(CancellationException("User cancelled key selection"))
+                }
+            },
+            null, null, null, -1, null
+        )
     }
+
+    // suspend-функция получения ключа и цепочки
+    suspend fun loadKeyChainEntry(context: Context, alias: String): Pair<PrivateKey?, Array<X509Certificate>?> =
+        withContext(Dispatchers.IO) {
+            val privateKey = KeyChain.getPrivateKey(context, alias)
+            val certChain = KeyChain.getCertificateChain(context, alias)
+            Pair(privateKey, certChain)
+        }
 
     private fun generateKeyPairToKeystore(): KeyPair {
         val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance(
@@ -593,7 +589,7 @@ class MainActivity : AppCompatActivity() {
         private const val CA_FILE = "CAcert.pem"
         private const val ENCRYPTED_DATA_FILE = "encrypted_data.bin"
 
-        private const val HOST_IP = "10.0.2.2"
+        private const val HOST_IP = "192.168.1.110"
         private const val HOST_PORT = 1443
     }
 }

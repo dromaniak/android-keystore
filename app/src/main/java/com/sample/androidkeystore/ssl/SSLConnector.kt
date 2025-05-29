@@ -5,28 +5,51 @@ import java.io.BufferedWriter
 import java.io.OutputStreamWriter
 import java.security.KeyStore
 import java.security.SecureRandom
+import java.security.cert.Certificate
+import java.security.cert.X509Certificate
 import javax.net.ssl.*
 
 
 class SSLConnector {
-
     private var sslContext: SSLContext? = null
     private var sslSocket: SSLSocket? = null
 
-    fun init(keyStore: KeyStore, password: String?) {
+    fun init(clientKeyStore: KeyStore, password: String? = null) {
         val keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
-        keyManagerFactory.init(keyStore, password?.toCharArray())
+        keyManagerFactory.init(clientKeyStore, password?.toCharArray())
         val keyManagers = keyManagerFactory.keyManagers
 
-        val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-        trustManagerFactory.init(keyStore)
+        val alias = clientKeyStore.aliases().toList().firstOrNull()
+        val certChain = clientKeyStore.getCertificateChain(alias)
+            .filterIsInstance<X509Certificate>()
+            .let { certs ->
+                if (clientKeyStore.isKeyEntry(alias) && clientKeyStore.getKey(alias, null) != null)
+                    certs.drop(1) // есть ключ — пропускаем клиентский сертификат
+                else
+                    certs
+            }
+            .toTypedArray()
+        val trustStore = createTrustStoreFromChain(certChain)
+        val trustManagerFactory =
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        trustManagerFactory.init(trustStore)
         val trustManagers = trustManagerFactory.trustManagers
 
         sslContext = SSLContext.getInstance("TLS")
         sslContext?.init(keyManagers, trustManagers, SecureRandom())
         val sslEngine = sslContext?.createSSLEngine()
         sslEngine?.useClientMode = true
-        sslEngine?.needClientAuth = false
+        sslEngine?.needClientAuth = true
+    }
+
+    private fun createTrustStoreFromChain(certChain: Array<X509Certificate>): KeyStore {
+        val rootCA = certChain.last() // rootCA
+
+        val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
+        trustStore.load(null, null)
+        trustStore.setCertificateEntry("root-ca", rootCA)
+
+        return trustStore
     }
 
     fun connect(hostName: String, port: Int) {

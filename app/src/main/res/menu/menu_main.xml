@@ -52,10 +52,6 @@
         android:orderInCategory="60"
         android:title="@string/action_ssl_connect1" />
     <item
-        android:id="@+id/action_ssl_connect2"
-        android:orderInCategory="61"
-        android:title="@string/action_ssl_connect2" />
-    <item
         android:id="@+id/action_encrypt_sample_data"
         android:orderInCategory="70"
         android:title="@string/action_encrypt_data" />

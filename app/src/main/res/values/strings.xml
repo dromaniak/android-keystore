@@ -11,8 +11,7 @@
     <string name="action_show_keys">Show Keys</string>
     <string name="action_delete_all_keys">Delete All Keys</string>
 <!--    <string name="action_delete_other_keys">Delete Other Keys</string>-->
-    <string name="action_ssl_connect1">SSL Connect1</string>
-    <string name="action_ssl_connect2">SSL Connect2</string>
+    <string name="action_ssl_connect1">SSL Connect</string>
     <string name="action_encrypt_data">Encrypt Data</string>
     <string name="action_decrypt_data">Decrypt Data</string>
 </resources>
