@@ -403,14 +403,19 @@ class MainActivity : AppCompatActivity() {
 
         GlobalScope.launch {
             try {
-                val alias = selectKeyAlias(this@MainActivity)
-                val (privateKey, certChain) = loadKeyChainEntry(this@MainActivity, alias)
+                val keyStore: KeyStore
+                if (usePkcsKeyStore) {
+                    keyStore = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
+                } else {
+                    val alias = selectKeyAlias(this@MainActivity)
+                    val (privateKey, certChain) = loadKeyChainEntry(this@MainActivity, alias)
 
-                val keyStore: KeyStore = KeyStore.getInstance("PKCS12")
-                keyStore.load(null, null) // пустой кейстор
-                keyStore.setKeyEntry("client", privateKey, null, certChain)
+                    keyStore = KeyStore.getInstance("PKCS12")
+                    keyStore.load(null, null)
+                    keyStore.setKeyEntry("client", privateKey, null, certChain)
+                }
                 sslConnector.init(keyStore)
-                
+
                 // connect from Virtual Device to local PC
                 sslConnector.connect(HOST_IP, HOST_PORT)
                 sslConnector.sendMessage("SSLConnector Hello\n")
@@ -506,11 +511,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun encryptSampleData() {
-        val keyStore: KeyStore
-        if (usePkcsKeyStore) {
-            keyStore = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
+        val keyStore: KeyStore = if (usePkcsKeyStore) {
+            loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
         } else {
-            keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+            KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
         }
         val publicKey = keyStore.getCertificate(KEY_ALIAS)?.publicKey
         val sampleData = "Sample Data to Encrypt"

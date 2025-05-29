@@ -19,16 +19,17 @@ class SSLConnector {
         keyManagerFactory.init(clientKeyStore, password?.toCharArray())
         val keyManagers = keyManagerFactory.keyManagers
 
-        val alias = clientKeyStore.aliases().toList().firstOrNull()
-        val certChain = clientKeyStore.getCertificateChain(alias)
-            .filterIsInstance<X509Certificate>()
-            .let { certs ->
+        val certChain = clientKeyStore.aliases().toList().mapNotNull { alias ->
+            clientKeyStore.getCertificateChain(alias)
+            ?.filterIsInstance<X509Certificate>()
+            ?.let { certs ->
                 if (clientKeyStore.isKeyEntry(alias) && clientKeyStore.getKey(alias, null) != null)
-                    certs.drop(1) // есть ключ — пропускаем клиентский сертификат
+                    certs.drop(1) // if client key — skip client cert
                 else
                     certs
             }
-            .toTypedArray()
+        }.flatten().toTypedArray()
+
         val trustStore = createTrustStoreFromChain(certChain)
         val trustManagerFactory =
             TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
