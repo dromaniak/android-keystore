@@ -22,12 +22,6 @@ class SSLConnector {
         val certChain = clientKeyStore.aliases().toList().mapNotNull { alias ->
             clientKeyStore.getCertificateChain(alias)
             ?.filterIsInstance<X509Certificate>()
-            ?.let { certs ->
-                if (clientKeyStore.isKeyEntry(alias) && clientKeyStore.getKey(alias, null) != null)
-                    certs.drop(1) // if client key — skip client cert
-                else
-                    certs
-            }
         }.flatten().toTypedArray()
 
         val trustStore = createTrustStoreFromChain(certChain)
@@ -44,11 +38,13 @@ class SSLConnector {
     }
 
     private fun createTrustStoreFromChain(certChain: Array<X509Certificate>): KeyStore {
-        val rootCA = certChain.last() // rootCA
-
         val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
         trustStore.load(null, null)
-        trustStore.setCertificateEntry("root-ca", rootCA)
+
+        certChain.forEachIndexed { index, certificate ->
+            val alias = "cert-$index"
+            trustStore.setCertificateEntry(alias, certificate)
+        }
 
         return trustStore
     }
