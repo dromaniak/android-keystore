@@ -14,7 +14,7 @@ class SSLConnector {
     private var sslContext: SSLContext? = null
     private var sslSocket: SSLSocket? = null
 
-    fun init(clientKeyStore: KeyStore, password: String? = null) {
+    fun init(clientKeyStore: KeyStore, password: String?) {
         val keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm())
         keyManagerFactory.init(clientKeyStore, password?.toCharArray())
         val keyManagers = keyManagerFactory.keyManagers

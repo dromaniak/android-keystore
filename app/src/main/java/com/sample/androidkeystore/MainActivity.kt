@@ -14,6 +14,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.sample.androidkeystore.ssl.NettySocketClient
 import com.sample.androidkeystore.ssl.SSLConnector
 import com.sample.androidkeystore.utils.BouncyCastleSecurityUtils
 import com.sample.androidkeystore.utils.SpongyCastleSecurityUtils
@@ -159,7 +160,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             R.id.action_ssl_connect1 -> {
-                sslConnect()
+                sslConnect1()
+            }
+            R.id.action_ssl_connect2 -> {
+                sslConnect2()
             }
             R.id.action_encrypt_sample_data -> {
                 encryptSampleData()
@@ -398,7 +402,7 @@ class MainActivity : AppCompatActivity() {
         savePkcsKeyStore(ks, PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
     }
 
-    private fun sslConnect() {
+    private fun sslConnect1() {
         val sslConnector = SSLConnector()
 
         GlobalScope.launch {
@@ -414,12 +418,54 @@ class MainActivity : AppCompatActivity() {
                     keyStore.load(null, null)
                     keyStore.setKeyEntry("client", privateKey, null, certChain)
                 }
-                sslConnector.init(keyStore)
+
+                val keyStorePassword = if (usePkcsKeyStore) {
+                    KEYSTORE_PASSWORD
+                } else {
+                    null
+                }
+
+                sslConnector.init(keyStore, keyStorePassword)
 
                 // connect from Virtual Device to local PC
                 sslConnector.connect(HOST_IP, HOST_PORT)
                 sslConnector.sendMessage("SSLConnector Hello\n")
                 sslConnector.close()
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun sslConnect2() {
+        // connect from Virtual Device to local PC
+        val socketClient = NettySocketClient(HOST_IP, HOST_PORT)
+
+        GlobalScope.launch {
+            try {
+                val keyStore: KeyStore
+                if (usePkcsKeyStore) {
+                    keyStore = loadPkcsKeyStore(PKCS_KEYSTORE_FILE, KEYSTORE_PASSWORD)
+                } else {
+                    val alias = selectKeyAlias(this@MainActivity)
+                    val (privateKey, certChain) = loadKeyChainEntry(this@MainActivity, alias)
+
+                    keyStore = KeyStore.getInstance("PKCS12")
+                    keyStore.load(null, null)
+                    keyStore.setKeyEntry("client", privateKey, null, certChain)
+                }
+
+                val keyStorePassword = if (usePkcsKeyStore) {
+                    KEYSTORE_PASSWORD
+                } else {
+                    null
+                }
+
+                socketClient.init(keyStore, keyStorePassword)
+                socketClient.open()
+                socketClient.sendMessage("NettySocketClient Hello\n")
+                socketClient.close()
 
             } catch (e: Exception) {
                 e.printStackTrace()

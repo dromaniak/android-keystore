@@ -12,6 +12,7 @@ import io.netty.handler.ssl.SslHandler
 import java.io.IOException
 import java.security.KeyStore
 import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.net.ssl.KeyManagerFactory
@@ -32,12 +33,31 @@ class NettySocketClient(private val remoteHost: String, private val remotePort: 
         keyManagerFactory.init(keyStore, password?.toCharArray())
         val keyManagers = keyManagerFactory.keyManagers
 
-        val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-        trustManagerFactory.init(keyStore)
+        val certChain = keyStore.aliases().toList().mapNotNull { alias ->
+            keyStore.getCertificateChain(alias)
+                ?.filterIsInstance<X509Certificate>()
+        }.flatten().toTypedArray()
+
+        val trustStore = createTrustStoreFromChain(certChain)
+        val trustManagerFactory =
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        trustManagerFactory.init(trustStore)
         val trustManagers = trustManagerFactory.trustManagers
 
         sslContext = SSLContext.getInstance("TLS")
         sslContext?.init(keyManagers, trustManagers, SecureRandom())
+    }
+
+    private fun createTrustStoreFromChain(certChain: Array<X509Certificate>): KeyStore {
+        val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
+        trustStore.load(null, null)
+
+        certChain.forEachIndexed { index, certificate ->
+            val alias = "cert-$index"
+            trustStore.setCertificateEntry(alias, certificate)
+        }
+
+        return trustStore
     }
 
     @JvmOverloads
@@ -61,18 +81,10 @@ class NettySocketClient(private val remoteHost: String, private val remotePort: 
                                 engine.useClientMode = true
                                 engine.needClientAuth = false
                                 pipeline.addLast("ssl", SslHandler(engine))
-//                        pipeline.addLast(
-//                            "length-decoder",
-//                            LengthFieldBasedFrameDecoder(Int.MAX_VALUE, 0, 4, 0, 4)
-//                        )
                                 pipeline.addLast(
                                         "bytearray-decoder",
                                         ByteArrayDecoder()
                                 )
-//                        pipeline.addLast(
-//                            "length-encoder",
-//                            LengthFieldPrepender(4)
-//                        )
                                 pipeline.addLast(
                                         "bytearray-encoder",
                                         ByteArrayEncoder()
